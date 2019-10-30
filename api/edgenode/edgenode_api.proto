@@ -1,0 +1,30 @@
+syntax = "proto3";
+package edgenode;
+
+
+service PubSub {
+    rpc Publish(stream Image) returns (Status) {}  
+    rpc Subscribe(ImageStreamParameters) returns (stream Image) {}
+    rpc Unsubscribe(CameraInfo) returns (Status) {} 
+}
+
+message Image {
+    bytes image = 1;
+    string timestamp = 2;
+}
+
+message CameraInfo {
+   repeated  string camid = 1;
+}
+
+message ImageStreamParameters {
+    string camid = 1;
+    string latency = 2;
+    string accuracy = 3;
+    string start = 4;
+    string stop = 5;
+}
+
+message Status {
+    bool status = 1;
+}

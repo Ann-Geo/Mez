@@ -1,0 +1,47 @@
+syntax = "proto3";
+package edgeserver;
+
+
+service PubSub {
+    rpc Register(NodeInfo) returns (Status) {}  
+    rpc Unregister(NodeInfo) returns (Status) {} 
+    rpc GetCameraInfo(CameraParameters) returns (CameraInfo) {}
+    rpc Subscribe(ImageStreamParameters) returns (stream Image) {}
+    rpc Unsubscribe(AppInfo) returns (Status) {} 
+}
+
+message Image {
+    bytes image = 1;
+    string timestamp = 2;
+}
+
+message NodeInfo {
+    string ipaddr = 1;
+    string camid = 2;
+}
+
+message CameraParameters {
+    // Empty
+}
+
+message CameraInfo {
+   repeated  string camid = 1;
+}
+
+message ImageStreamParameters {
+    string appid = 1;
+    string camid = 2;
+    string latency = 3;
+    string accuracy = 4;
+    string start = 5;
+    string stop = 6;
+}
+
+message AppInfo {
+    string appid = 1;
+    string camid = 2;
+}
+
+message Status {
+    bool status = 1;
+}
