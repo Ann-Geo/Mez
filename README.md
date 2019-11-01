@@ -1,24 +1,16 @@
 Raven_v3 - A PubSub messaging system for Distributed Vision applications at the Edge
 
-To compile gRPC proto (from Raven_v3)
-protoc -I api/edgeserver api/edgeserver/edgeserver_api.proto --go_out=plugins=grpc:api/edgeserver
-protoc -I api/edgenode api/edgenode/edgenode_api.proto --go_out=plugins=grpc:api/edgenode
+Branch created for testing Raven storage
+Completed tests: 
+- Storage append for same size images
+	- For partially written, fully written and over written cases
+	- For image size - 2.1M, 1.5M, 1.2M, 1.0M, 800K, 500K, 200K, 100K, 50K 
+	- For fram rate - 30fps, 24fps and 15fps
+	- for number of images - 500, 1000
 
-Builds off Raven_v2
+- Storage append for variable size images
+	- For partially written
+	- For image sizes between 2.1M and 1K 
+	- for number of images - 50
+	- For fram rate - 30fps,
 
-v3 To dos:
-Cleanup errors
-Review concurrency 
-Review timeouts
-Breakup subscribe into separate gothreads for read and send communicating by channels
-
-v4 To dos:
-Test each method thoroughly for all components
-Test on 2 machines - edgeserver, and edgenode
-Secure certs and passwords
-Release to Github
-Mez will use this codebase and add controller
-
-v5 To dos:
-Add persistence
-Add REST api for telemetry
