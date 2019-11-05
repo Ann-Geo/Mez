@@ -1,7 +1,8 @@
 Raven_v3 - A PubSub messaging system for Distributed Vision applications at the Edge
 
 Branch created for testing Raven storage
-Completed tests:\ 
+
+Completed tests: 
 - Storage append for same size and variable size images
 	- For partially written, fully written and over written cases
 	- For same image size - 2.1M, 1.5M, 1.2M, 1.0M, 800K, 500K, 200K, 100K, 50K 
