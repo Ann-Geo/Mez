@@ -21,7 +21,7 @@ Completed tests:
 	- For partially written, fully written and over written cases
 
 - Read concurrent with append
-	- For partially written, fully written and over written cases (only case 1)
+	- For partially written, fully written and over written cases
 	- For image sizes 1K to 2.1M
 
 
