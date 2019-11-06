@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -68,7 +69,9 @@ func sliceEquality(tsAppended, tsRead []time.Time, imSizeAppended, imSizeRead []
 }
 
 //To Read images from channel - sent by memlog.Read function
-func readFromChannel(imts chan ImageTimestamp, errch chan error, t *testing.T, done chan bool, stop time.Time, fill string, noIm, ss, ls uint64) {
+//For readers with same Tstart and Tend
+func readFromChannelSame(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T, done chan bool,
+	stop time.Time, fill string, noIm, ss, ls uint64) {
 	errc := <-errch
 
 	//To count total number of images read
@@ -95,6 +98,7 @@ func readFromChannel(imts chan ImageTimestamp, errch chan error, t *testing.T, d
 			}
 		}
 	}
+
 	if fill == "NO" {
 		if !(stop.After(lastTsRead)) {
 			t.Errorf("case 1: Read failed - did not read until tstop")
@@ -109,9 +113,93 @@ func readFromChannel(imts chan ImageTimestamp, errch chan error, t *testing.T, d
 		}
 
 	}
+
 	done <- true
 	//return done
-	fmt.Println(readImageCount)
+	fmt.Printf("reader%v - %v\n", readerId, readImageCount)
+}
+
+//To Read images from channel - sent by memlog.Read function
+//For readers with same Tstart and Tend
+//Readers read images concurrently with Append
+func readFromChannelSameConcurrent(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T, readIms chan uint64,
+	stop time.Time, fill string, noIm, ss, ls uint64) {
+	errc := <-errch
+
+	//To count total number of images read
+	var readImageCount uint64
+	//last read time stamp from the log
+	//var lastTsRead time.Time
+	//done := make(chan bool)
+
+	if errc != nil {
+		//err = errc
+		t.Errorf("Read error %s", errc)
+	} else {
+		ok := true
+		for ok {
+			select {
+			case _ = <-imts:
+				readImageCount++
+				//t.Logf("Size of image is %d and timestamp is %v \n", len(it.Im), it.Ts)
+				//lastTsRead = it.Ts
+				ok = true
+
+			default:
+				ok = false
+			}
+		}
+	}
+	fmt.Printf("reader%v - %v\n", readerId, readImageCount)
+	readIms <- readImageCount
+	//return done
+
+}
+
+type IdCount struct {
+	//done bool
+	readerId   uint64
+	readImages uint64
+}
+
+//To Read images from channel - sent by memlog.Read function
+//For readers with variable Tstart and Tend
+func readFromChannelVariable(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T,
+	stop time.Time, fill string, noIm, ss, ls uint64, idcount chan IdCount) {
+
+	errc := <-errch
+
+	//To count total number of images read
+	var readImageCount uint64
+	//last read time stamp from the log
+	//var lastTsRead time.Time
+	//done := make(chan bool)
+
+	if errc != nil {
+		//err = errc
+		t.Errorf("Read error %s", errc)
+	} else {
+		ok := true
+		for ok {
+			select {
+			case _ = <-imts:
+				readImageCount++
+				//t.Logf("Size of image is %d and timestamp is %v \n", len(it.Im), it.Ts)
+				//lastTsRead = it.Ts
+				ok = true
+
+			default:
+				ok = false
+			}
+		}
+	}
+	fmt.Printf("reader%v - %v\n", readerId, readImageCount)
+
+	idcount <- IdCount{readerId: readerId, readImages: readImageCount}
+	//<-readerId
+	//<-readImageCount
+
+	//fmt.Printf("reader%v - %v\n", readerId, readImageCount)
 }
 
 //**********************************Helper functions end***********************************
@@ -209,11 +297,11 @@ partially written
 FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=500 LS=10 SS=100 FILL= NO
 go test -v -run="TestReadAppended"
 over written
-FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30, FILL=O
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O
 go test -v-run="TestReadAppended"
-FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30, FILL=O1
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O1
 go test -v-run="TestReadAppended"
-FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30, FILL=O2
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O2
 go test -v-run="TestReadAppended"
 FP is path to images, NO_IM is no of images to be inserted
 LS is log size and SS is segment size, FILL is O or NO (O for over written, NO for not over written)
@@ -284,8 +372,8 @@ func TestReadAppended(t *testing.T) {
 			memlog.Append(Image(imBuf), ts)
 			//Specify frame rate here
 			time.Sleep(f0 * time.Millisecond)
-			//sz, pos, tins := memlog.AppendStats()
-			//t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
+			sz, pos, tins := memlog.AppendStats()
+			t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
 
 		}
 		fmt.Println("append done")
@@ -306,7 +394,7 @@ func TestReadAppended(t *testing.T) {
 		stop = tsLastImage.Add(10 * time.Millisecond)
 	} else if fillType == "O2" {
 		start = tsOverWrittenFirstIndex.Add(10 * time.Millisecond)
-		stop = tsLastImage.Add(-10 * time.Millisecond)
+		stop = tsLastImage.Add(-70 * time.Millisecond)
 	}
 
 	//fmt.Println(st)
@@ -400,7 +488,7 @@ partially written
 FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=500 LS=10 SS=100 FILL= NO
 go test -v -run="TestReadConcurrent"
 over written
-FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30, FILL=O
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O
 go test -v-run="TestReadConcurrent"
 FP is path to images, NO_IM is no of images to be inserted
 LS is log size and SS is segment size, FILL is O or NO (O for over written, NO for not over written)
@@ -555,24 +643,26 @@ func TestReadConcurrent(t *testing.T) {
 /*
 Tests storage Read for already appended images for multiple readers for
 partially, fully and over written logs
+All readers with same Tstart and Tend
 parameters: no of images-1000,500
 image size: variable from 2.1M to 1K
 frame rate:30fps
 To run this test use command,
 fully written
 FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=1000 LS=10 SS=100 FILL=NO NR=5
-go test -v -run="TestReadMultiple"
+go test -v -run="TestReadMultipleSameTstartAndTEnd"
 Partially Written
 FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=500 LS=10 SS=100 FILL=NO NR=10
-go test -v -run="TestReadMultiple"
+go test -v -run="TestReadMultipleSameTstartAndTEnd"
 over written
 FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O NR=10
-go test -v -run="TestReadMultiple"
+go test -v -run="TestReadMultipleSameTstartAndTEnd"
 FP is path to images, NO_IM is no of images to be inserted
 LS is log size and SS is segment size, FILL is O or NO (O for over written, NO for not over written)
 Frame rate should be specified in code
+All readers with same Tstart and Tend
 */
-func TestReadMultiple(t *testing.T) {
+func TestReadMultipleSameTstartAndTEnd(t *testing.T) {
 	const f0 = 33
 
 	imageFilesPath := os.Getenv("FP")
@@ -655,13 +745,6 @@ func TestReadMultiple(t *testing.T) {
 	fmt.Println("tsOverWrittenFirstIndex--", tsOverWrittenFirstIndex)
 	fmt.Println("tsLastImage --", tsLastImage)
 	stop := time.Now()
-	if fillType == "O1" {
-		start = tsOverWrittenFirstIndex.Add(10 * time.Millisecond)
-		stop = tsLastImage.Add(10 * time.Millisecond)
-	} else if fillType == "O2" {
-		start = tsOverWrittenFirstIndex.Add(10 * time.Millisecond)
-		stop = tsLastImage.Add(-10 * time.Millisecond)
-	}
 
 	//fmt.Println(st)
 
@@ -682,7 +765,7 @@ func TestReadMultiple(t *testing.T) {
 		errch[k] = make(chan error)
 
 		go memlog.Read(imts[k], start, stop, errch[k])
-		go readFromChannel(imts[k], errch[k], t, done, stop, fillType, noImagesInsert, segSize, logSize)
+		go readFromChannelSame(k, imts[k], errch[k], t, done, stop, fillType, noImagesInsert, segSize, logSize)
 		defer close(imts[k])
 		defer close(errch[k])
 
@@ -692,6 +775,336 @@ func TestReadMultiple(t *testing.T) {
 
 		<-done
 
+	}
+
+}
+
+/*
+Tests storage Read concurrently with appended images for multiple readers for
+partially, fully and over written logs
+All readers with same Tstart and Tend
+parameters: no of images-1000,500
+image size: variable from 2.1M to 1K
+frame rate:30fps
+To run this test use command,
+fully written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=1000 LS=10 SS=100 FILL=NO NR=5
+go test -v -run="TestReadMultipleConcurrentSameTstartAndTEnd"
+Partially Written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=500 LS=10 SS=100 FILL=NO NR=10
+go test -v -run="TestReadMultipleConcurrentSameTstartAndTEnd"
+over written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O NR=10
+go test -v -run="TestReadMultipleConcurrentSameTstartAndTEnd"
+FP is path to images, NO_IM is no of images to be inserted
+LS is log size and SS is segment size, FILL is O or NO (O for over written, NO for not over written)
+Frame rate should be specified in code
+All readers with same Tstart and Tend
+*/
+func TestReadMultipleConcurrentSameTstartAndTEnd(t *testing.T) {
+	const f0 = 33
+	//sleep time should be less than NO_IM*f0
+	const sleepTime = 70
+	//waitTime should be >f0*segsize*logsize
+	const waitTime = 10000
+
+	imageFilesPath := os.Getenv("FP")
+	noImages := os.Getenv("NO_IM")
+	noImagesInsert, _ := strconv.ParseUint(noImages, 10, 64)
+	logSz := os.Getenv("LS")
+	logSize, _ := strconv.ParseUint(logSz, 10, 64)
+	segSz := os.Getenv("SS")
+	segSize, _ := strconv.ParseUint(segSz, 10, 64)
+	fillType := os.Getenv("FILL")
+	numR := os.Getenv("NR")
+	numReader, _ := strconv.ParseUint(numR, 10, 64)
+	//fmt.Println(numReader)
+
+	//frame rate should be specified after inserting the timestamp
+	var (
+		imBuf []byte
+		err   error
+	)
+
+	//new memlog
+	memlog := NewMemLog(segSize, logSize)
+
+	//Obtain filenames in the directory path given
+	fileList := walkAllFilesInDir(imageFilesPath)
+
+	start := time.Now()
+	fmt.Println("start -- ", start)
+
+	var tsOverWrittenFirstIndex time.Time
+	var tsLastImage time.Time
+
+	go func() {
+
+		//read all files to buffer (conversion to bytes)
+		//Append image sizes to the slice
+		//Append to log
+		//read images count
+		ts := time.Now()
+		var readImCount uint64
+		for _, file := range fileList {
+
+			if readImCount == noImagesInsert {
+				tsLastImage = ts
+				fmt.Println("tsLastImage --", tsLastImage)
+				break
+			}
+			imBuf, err = ioutil.ReadFile(file)
+
+			if err != nil {
+				t.Errorf("Cannot read image file %v\n", err)
+				panic(err)
+
+			}
+			readImCount++
+			ts = time.Now()
+			if readImCount == (segSize*logSize)+1 {
+				tsOverWrittenFirstIndex = ts
+				fmt.Println("tsOverWrittenFirstIndex--", tsOverWrittenFirstIndex)
+			}
+
+			//fmt.Println(ts)
+			memlog.Append(Image(imBuf), ts)
+			//Specify frame rate here
+			time.Sleep(f0 * time.Millisecond)
+			//sz, pos, tins := memlog.AppendStats()
+			//t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
+
+		}
+		fmt.Println("append done")
+		fmt.Println(readImCount)
+	}()
+
+	stop := time.Now()
+	if fillType == "NO" {
+		time.Sleep(sleepTime * time.Millisecond)
+		stop = start.Add(time.Millisecond * (sleepTime))
+	} else {
+		time.Sleep((waitTime + sleepTime) * time.Millisecond)
+		stop = start.Add(time.Millisecond * (waitTime + sleepTime))
+	}
+
+	fmt.Println("tsOverWrittenFirstIndex--", tsOverWrittenFirstIndex)
+	fmt.Println("tsLastImage --", tsLastImage)
+
+	//fmt.Println(st)
+
+	//sec, _:= time.ParseDuration("100ms")
+	//stop := start.Add(time.Millisecond * 1000)
+	fmt.Println("start--", start)
+	fmt.Println("stop --", stop)
+	t.Log("Read Start End", start, stop)
+
+	//fmt.Println(memlog.tsmemlog.tslog)
+	var k uint64
+	var imts [100]chan ImageTimestamp
+	var errch [100]chan error
+	readIms := make(chan uint64)
+	for k = 0; k < numReader; k++ {
+		//fmt.Println("here*********************")
+		imts[k] = make(chan ImageTimestamp, 200*1024)
+		errch[k] = make(chan error)
+
+		go memlog.Read(imts[k], start, stop, errch[k])
+		go readFromChannelSameConcurrent(k, imts[k], errch[k], t, readIms, stop, fillType, noImagesInsert, segSize, logSize)
+		defer close(imts[k])
+		defer close(errch[k])
+
+	}
+
+	var readlk sync.Mutex
+
+	for k = 0; k < numReader; k++ {
+
+		readlk.Lock()
+		countIms := <-readIms
+		fmt.Println(countIms)
+		if fillType == "NO" {
+			if !(countIms == ((sleepTime / f0) + 1)) {
+				fmt.Println((sleepTime / f0) + 1)
+				t.Errorf("case 1: Read failed - #images read do not match #images inserted")
+			}
+		} else {
+			if !(countIms == segSize*logSize) {
+				t.Errorf("case 2: Read failed - #images read do not match #images inserted")
+			}
+		}
+		readlk.Unlock()
+
+	}
+
+}
+
+/*
+Tests storage Read for already appended images for multiple readers for
+partially, fully and over written logs
+Readers with different Tstart and Tend
+Test supports only NR<=5 readers
+parameters: no of images-1000,500
+image size: variable from 2.1M to 1K
+frame rate:30fps
+To run this test use command,
+fully written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=1000 LS=10 SS=100 FILL=NO NR=5
+go test -v -run="TestReadMultipleVariableTstartAndTEnd"
+Partially Written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=500 LS=10 SS=100 FILL=NO NR=5
+go test -v -run="TestReadMultipleVariableTstartAndTEnd"
+over written
+FP=/home/research/goworkspace/src/github.com/arun-ravindran/test_images/1000_images/ NO_IM=545 LS=10 SS=30 FILL=O NR=5
+go test -v -run="TestReadMultipleVariableTstartAndTEnd"
+FP is path to images, NO_IM is no of images to be inserted
+LS is log size and SS is segment size, FILL is O or NO (O for over written, NO for not over written)
+Frame rate should be specified in code
+*/
+func TestReadMultipleVariableTstartAndTEnd(t *testing.T) {
+	const f0 = 33
+	const startTime1 = 100
+	const startTime2 = 200
+	const startTime3 = 300
+	const startTime4 = 400
+
+	imageFilesPath := os.Getenv("FP")
+	noImages := os.Getenv("NO_IM")
+	noImagesInsert, _ := strconv.ParseUint(noImages, 10, 64)
+	logSz := os.Getenv("LS")
+	logSize, _ := strconv.ParseUint(logSz, 10, 64)
+	segSz := os.Getenv("SS")
+	segSize, _ := strconv.ParseUint(segSz, 10, 64)
+	fillType := os.Getenv("FILL")
+	numR := os.Getenv("NR")
+	numReader, _ := strconv.ParseUint(numR, 10, 64)
+	//fmt.Println(numReader)
+
+	//frame rate should be specified after inserting the timestamp
+	var (
+		imBuf []byte
+		err   error
+	)
+
+	//new memlog
+	memlog := NewMemLog(segSize, logSize)
+
+	//Obtain filenames in the directory path given
+	fileList := walkAllFilesInDir(imageFilesPath)
+
+	var k uint64
+	var start [50]time.Time
+	start[0] = time.Now()
+	start[1] = time.Now().Add((startTime1) * time.Millisecond)
+	start[2] = time.Now().Add((startTime2) * time.Millisecond)
+	start[3] = time.Now().Add((startTime3) * time.Millisecond)
+	start[4] = time.Now().Add((startTime4) * time.Millisecond)
+
+	//start = time.Now()
+	//fmt.Println("start -- ", start)
+
+	//var tsOverWrittenFirstIndex time.Time
+	//var tsLastImage time.Time
+
+	go func() {
+
+		//read all files to buffer (conversion to bytes)
+		//Append image sizes to the slice
+		//Append to log
+		//read images count
+		//fmt.Println("here")
+		ts := time.Now()
+		var readImCount uint64
+		for _, file := range fileList {
+
+			if readImCount == noImagesInsert {
+				//tsLastImage = ts
+				//fmt.Println("tsLastImage --", tsLastImage)
+				break
+			}
+			imBuf, err = ioutil.ReadFile(file)
+
+			if err != nil {
+				t.Errorf("Cannot read image file %v\n", err)
+				panic(err)
+
+			}
+			readImCount++
+			ts = time.Now()
+
+			//if readImCount == (segSize*logSize)+1 {
+			//tsOverWrittenFirstIndex = ts
+			//fmt.Println("tsOverWrittenFirstIndex--", tsOverWrittenFirstIndex)
+			//}
+
+			//fmt.Println(ts)
+			memlog.Append(Image(imBuf), ts)
+			//Specify frame rate here
+			time.Sleep(f0 * time.Millisecond)
+			//sz, pos, tins := memlog.AppendStats()
+			//t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
+
+		}
+		fmt.Println("append done")
+		//fmt.Println(readImCount)
+	}()
+
+	if noImagesInsert == 15 {
+		time.Sleep(1000 * time.Millisecond)
+	} else {
+		time.Sleep(((1000 * f0) + 2000) * time.Millisecond)
+	}
+
+	//fmt.Println("tsOverWrittenFirstIndex--", tsOverWrittenFirstIndex)
+	//fmt.Println("tsLastImage --", tsLastImage)
+	stop := time.Now()
+
+	//fmt.Println(st)
+
+	//sec, _:= time.ParseDuration("100ms")
+	//stop := start.Add(time.Millisecond * 1000)
+	//fmt.Println("start--", start)
+	fmt.Println("stop --", stop)
+	//t.Log("Read Start End", start, stop)
+
+	//fmt.Println(memlog.tsmemlog.tslog)
+	var imts [100]chan ImageTimestamp
+	var errch [100]chan error
+	//done := make(chan bool)
+
+	idcount := IdCount{}
+	readerIdAndreadImages := make(chan IdCount)
+	//readImages := make(chan uint64)
+
+	for k = 0; k < numReader; k++ {
+		//fmt.Println("here*********************")
+		imts[k] = make(chan ImageTimestamp, 200*1024)
+		errch[k] = make(chan error)
+
+		go memlog.Read(imts[k], start[k], stop, errch[k])
+		go readFromChannelVariable(k, imts[k], errch[k], t, stop, fillType, noImagesInsert, segSize, logSize, readerIdAndreadImages)
+		defer close(imts[k])
+		defer close(errch[k])
+
+	}
+
+	readImageMap := make(map[uint64]uint64)
+
+	var readlk sync.Mutex
+
+	for k = 0; k < numReader; k++ {
+
+		readlk.Lock()
+		idcount = <-readerIdAndreadImages
+		readImageMap[idcount.readerId] = idcount.readImages
+		readlk.Unlock()
+
+	}
+
+	for k = 0; k < numReader-1; k++ {
+		if readImageMap[k] < readImageMap[k+1] {
+			t.Errorf("Multiple readers with variable tstart and tstop test fail")
+		}
 	}
 
 }

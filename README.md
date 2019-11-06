@@ -17,12 +17,16 @@ Completed tests:
 
 - Multiple readers after append
 	- All readers with same Tstart and Tend
+	- Readers with different Tstart and Tend
 	- For image sizes 1K to 2.1M
 	- For partially written, fully written and over written cases
 
 - Read concurrent with append
+	- For single and multiple readers with same Tstart and Tend
 	- For partially written, fully written and over written cases
 	- For image sizes 1K to 2.1M
+
+
 
 
 
