@@ -14,7 +14,9 @@ import (
 
 //***************************Helper functions start*****************************************
 
-/*To return list of absolute paths of files in a directory
+/*
+To return list of absolute paths of files in a directory
+This helper function is used to read the test images from input directory
 Input - directory path
 Output- list of filepaths
 */
@@ -69,7 +71,7 @@ func sliceEquality(tsAppended, tsRead []time.Time, imSizeAppended, imSizeRead []
 }
 
 //To Read images from channel - sent by memlog.Read function
-//For readers with same Tstart and Tend
+//All readers have same Tstart and Tend
 func readFromChannelSame(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T, done chan bool,
 	stop time.Time, fill string, noIm, ss, ls uint64) {
 	errc := <-errch
@@ -78,10 +80,8 @@ func readFromChannelSame(readerId uint64, imts chan ImageTimestamp, errch chan e
 	var readImageCount uint64
 	//last read time stamp from the log
 	var lastTsRead time.Time
-	//done := make(chan bool)
 
 	if errc != nil {
-		//err = errc
 		t.Errorf("Read error %s", errc)
 	} else {
 		ok := true
@@ -89,7 +89,6 @@ func readFromChannelSame(readerId uint64, imts chan ImageTimestamp, errch chan e
 			select {
 			case it := <-imts:
 				readImageCount++
-				//t.Logf("Size of image is %d and timestamp is %v \n", len(it.Im), it.Ts)
 				lastTsRead = it.Ts
 				ok = true
 
@@ -115,12 +114,11 @@ func readFromChannelSame(readerId uint64, imts chan ImageTimestamp, errch chan e
 	}
 
 	done <- true
-	//return done
 	fmt.Printf("reader%v - %v\n", readerId, readImageCount)
 }
 
 //To Read images from channel - sent by memlog.Read function
-//For readers with same Tstart and Tend
+//All readers have same Tstart and Tend
 //Readers read images concurrently with Append
 func readFromChannelSameConcurrent(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T, readIms chan uint64,
 	stop time.Time, fill string, noIm, ss, ls uint64) {
@@ -128,12 +126,9 @@ func readFromChannelSameConcurrent(readerId uint64, imts chan ImageTimestamp, er
 
 	//To count total number of images read
 	var readImageCount uint64
-	//last read time stamp from the log
-	//var lastTsRead time.Time
-	//done := make(chan bool)
 
 	if errc != nil {
-		//err = errc
+
 		t.Errorf("Read error %s", errc)
 	} else {
 		ok := true
@@ -156,7 +151,7 @@ func readFromChannelSameConcurrent(readerId uint64, imts chan ImageTimestamp, er
 
 }
 
-type IdCount struct {
+type rIdImCount struct {
 	//done bool
 	readerId   uint64
 	readImages uint64
@@ -165,7 +160,7 @@ type IdCount struct {
 //To Read images from channel - sent by memlog.Read function
 //For readers with variable Tstart and Tend
 func readFromChannelVariable(readerId uint64, imts chan ImageTimestamp, errch chan error, t *testing.T,
-	stop time.Time, fill string, noIm, ss, ls uint64, idcount chan IdCount) {
+	stop time.Time, fill string, noIm, ss, ls uint64, idcount chan rIdImCount) {
 
 	errc := <-errch
 
@@ -195,7 +190,7 @@ func readFromChannelVariable(readerId uint64, imts chan ImageTimestamp, errch ch
 	}
 	fmt.Printf("reader%v - %v\n", readerId, readImageCount)
 
-	idcount <- IdCount{readerId: readerId, readImages: readImageCount}
+	idcount <- rIdImCount{readerId: readerId, readImages: readImageCount}
 	//<-readerId
 	//<-readImageCount
 
@@ -205,85 +200,6 @@ func readFromChannelVariable(readerId uint64, imts chan ImageTimestamp, errch ch
 //**********************************Helper functions end***********************************
 
 //***********************************Storage tests start************************************
-/*
-First test - tests storage Append and Read (For reference)
-*/
-func TestAppendRead(t *testing.T) {
-	var (
-		imBuf          []byte
-		imageFilesPath = "../test_images"
-		err            error
-	)
-
-	memlog := NewMemLog(2, 8)
-	start := time.Now()
-	time.Sleep(100 * time.Millisecond)
-
-	// Read image file names from directory
-	var files []string
-	absImageFilePath, _ := filepath.Abs(imageFilesPath)
-	err = filepath.Walk(absImageFilePath, func(path string, info os.FileInfo, err error) error {
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// Load a single image file to buffer
-	fd, err := os.Open(files[1])
-	if err != nil {
-		panic(err)
-	}
-	defer fd.Close()
-	fi, err := fd.Stat()
-	imBuf = make([]byte, fi.Size())
-	_, err = fd.Read(imBuf)
-	if err != nil {
-		t.Errorf("errored while copying from file to buf %v", err)
-	}
-
-	// Append to log
-	var i uint64
-	for i = 0; i < LOGSIZE*SEGSIZE; i++ {
-		ts := time.Now()
-		memlog.Append(Image(imBuf), ts)
-		time.Sleep(100 * time.Millisecond)
-		sz, pos, tins := memlog.AppendStats()
-		t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
-
-	}
-	// Read from log with input timestamp range outside the bounds of the log
-	time.Sleep(100 * time.Millisecond)
-	stop := time.Now()
-	t.Log("Read Start End", start, stop)
-
-	imts := make(chan ImageTimestamp, 200*1024)
-	errch := make(chan error)
-	defer close(imts)
-	defer close(errch)
-
-	go memlog.Read(imts, start, stop, errch)
-
-	errc := <-errch
-
-	if errc != nil {
-		t.Errorf("Read error %s", errc)
-	} else {
-		ok := true
-		for ok {
-			select {
-			case it := <-imts:
-				t.Logf("Size of image is %d and timestamp is %v \n", len(it.Im), it.Ts)
-				ok = true
-
-			default:
-				ok = false
-			}
-		}
-	}
-}
-
 /*
 Tests storage Read for already appended images for partially, fully and over written logs
 parameters: no of images-1000,500
@@ -394,7 +310,7 @@ func TestReadAppended(t *testing.T) {
 		stop = tsLastImage.Add(10 * time.Millisecond)
 	} else if fillType == "O2" {
 		start = tsOverWrittenFirstIndex.Add(10 * time.Millisecond)
-		stop = tsLastImage.Add(-70 * time.Millisecond)
+		stop = tsLastImage.Add(-10 * time.Millisecond)
 	}
 
 	//fmt.Println(st)
@@ -476,7 +392,7 @@ func TestReadAppended(t *testing.T) {
 }
 
 /*
-Tests storage Read concurrently with Append for images for partially, fully and over written logs
+Tests storage Read concurrently with Append for images for partially, fully and over written logs for a single reader
 parameters: no of images-1000,500
 image size: variable from 2.1M to 1K
 frame rate:30fps
@@ -1072,8 +988,8 @@ func TestReadMultipleVariableTstartAndTEnd(t *testing.T) {
 	var errch [100]chan error
 	//done := make(chan bool)
 
-	idcount := IdCount{}
-	readerIdAndreadImages := make(chan IdCount)
+	idcount := rIdImCount{}
+	readerIdAndreadImages := make(chan rIdImCount)
 	//readImages := make(chan uint64)
 
 	for k = 0; k < numReader; k++ {

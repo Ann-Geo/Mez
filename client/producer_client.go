@@ -2,7 +2,6 @@
 package client
 
 import (
-	"github.com/arun-ravindran/Raven/api/edgenode"
 	"context"
 	"fmt"
 	"io"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgenode"
 )
 
 type ProducerClient struct {

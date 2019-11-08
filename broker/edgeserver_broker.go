@@ -1,19 +1,20 @@
 package broker
 
 import (
-	"github.com/arun-ravindran/Raven/api/edgenode"
-	"github.com/arun-ravindran/Raven/api/edgeserver"
-	"github.com/arun-ravindran/Raven/storage"
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 	"log"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgenode"
+	"github.com/arun-ravindran/Raven/api/edgeserver"
+	"github.com/arun-ravindran/Raven/storage"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 type EdgeServerBroker struct {
@@ -80,7 +81,7 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 	}
 
 	// Create storage for edge node at edgeserver
-	s.store[nodeinfo.Camid] = storage.NewMemLog(2, 8)
+	s.store[nodeinfo.Camid] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
 	return &edgeserver.Status{
 		Status: true,

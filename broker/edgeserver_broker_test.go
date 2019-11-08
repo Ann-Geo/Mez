@@ -4,13 +4,14 @@
 package broker
 
 import (
+	"testing"
+	"time"
+
 	"github.com/arun-ravindran/Raven/api/edgenode"
-        "github.com/arun-ravindran/Raven/api/edgeserver"
+	"github.com/arun-ravindran/Raven/api/edgeserver"
 	"github.com/arun-ravindran/Raven/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"testing"
-	"time"
 )
 
 func TestEdgeServerBroker(t *testing.T) {

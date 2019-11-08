@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/arun-ravindran/Raven/broker"
 	"os"
 	"os/signal"
+
+	"github.com/arun-ravindran/Raven/broker"
 )
 
 func main() {

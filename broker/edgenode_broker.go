@@ -1,20 +1,21 @@
 package broker
 
 import (
-	"github.com/arun-ravindran/Raven/api/edgenode"
-	"github.com/arun-ravindran/Raven/api/edgeserver"
-	"github.com/arun-ravindran/Raven/storage"
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgenode"
+	"github.com/arun-ravindran/Raven/api/edgeserver"
+	"github.com/arun-ravindran/Raven/storage"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 type EdgeNodeBroker struct {
@@ -49,7 +50,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 	}
 
 	// Create default log storage
-	s.store[s.serverName] = storage.NewMemLog(2, 8)
+	s.store[s.serverName] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
 	// Register with edge server
 	err = s.regsterWithEdgeServer(edgeServerIpaddr, login, password)
