@@ -10,57 +10,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func TestSubscribeAfterPublish(t *testing.T) {
-
-	var tests = []struct {
-		imageFilesPath  string
-		numImagesInsert uint64
-		frameRate       uint64
-		logSize         uint64
-		segSize         uint64
-		fillType        string
-		imSizeParam     string
-	}{
-		{"../../test_images/2.1M/", 1000, 33, 10, 100, "NO", "S"},
-		//{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
-		//{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
-	}
-
-	for _, test := range tests {
-		tStart := (time.Now()).Format(customTimeformat)
-		publishErrMsg, tsPublished, imSizePublished, numPublished := runProducerClientTest(test.imageFilesPath, test.numImagesInsert,
-			test.frameRate, test.imSizeParam)
-		if publishErrMsg != "publish success" {
-			t.Fatalf("Publish failed - %v\n", publishErrMsg)
-		}
-		tStop := (time.Now()).Format(customTimeformat)
-		latency := "100"
-		accuracy := "1"
-		camid := "cam1"
-
-		subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd := runConsumerClientTest(camid, latency, accuracy, tStart, tStop)
-		if subErrMsg != "subscribe success" {
-			t.Fatalf("Subscribe failed - %v\n", subErrMsg)
-		}
-
-		if test.fillType == "NO" {
-			if !(numPublished == numImagesRecvd) {
-				t.Errorf("Num images published not equal to num images subscribed")
-			} else {
-				testErrMsg, testStatus := sliceEquality(tsPublished, tsSubscribed, imSizePublished, imSizeSubscribed)
-				if !testStatus {
-					t.Errorf("Subscribe after Publish fail - %v\n", testErrMsg)
-				}
-			}
-		} else {
-			if !(numImagesRecvd == test.logSize*test.segSize) {
-				t.Errorf("Num images published not equal to num images subscribed")
-			}
-		}
-
-	}
-
-}
+/***************Helper functions start*********************************/
 
 func runProducerClientTest(imageFilesPath string, numImagesInsert, frameRate uint64, imSizeParam string) (string, []string, []int, uint64) {
 	var tsPublished []string
@@ -110,8 +60,6 @@ func runConsumerClientTest(camid, latency, accuracy string, tStart, tStop string
 	return subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd
 }
 
-//***************************Helper functions*****************************************
-
 /*To compare equality of timestamp slices (Appended and Read)
 and to compare equality of image size slices (Appended and Read)
 Input - Appended and Read slices
@@ -150,6 +98,60 @@ func sliceEquality(tsAppended, tsRead []string, imSizeAppended, imSizeRead []int
 		return errMsg, status
 	} else {
 		return "slices are equal", true
+	}
+
+}
+
+/*****************************Helper functions end********************************************/
+
+func TestSubscribeAfterPublish(t *testing.T) {
+
+	var tests = []struct {
+		imageFilesPath  string
+		numImagesInsert uint64
+		frameRate       uint64
+		logSize         uint64
+		segSize         uint64
+		fillType        string
+		imSizeParam     string
+	}{
+		{"../../test_images/2.1M/", 1000, 33, 10, 100, "NO", "S"},
+		{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
+		{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
+	}
+
+	for _, test := range tests {
+		tStart := (time.Now()).Format(customTimeformat)
+		publishErrMsg, tsPublished, imSizePublished, numPublished := runProducerClientTest(test.imageFilesPath, test.numImagesInsert,
+			test.frameRate, test.imSizeParam)
+		if publishErrMsg != "publish success" {
+			t.Fatalf("Publish failed - %v\n", publishErrMsg)
+		}
+		tStop := (time.Now()).Format(customTimeformat)
+		latency := "100"
+		accuracy := "1"
+		camid := "cam1"
+
+		subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd := runConsumerClientTest(camid, latency, accuracy, tStart, tStop)
+		if subErrMsg != "subscribe success" {
+			t.Fatalf("Subscribe failed - %v\n", subErrMsg)
+		}
+
+		if test.fillType == "NO" {
+			if !(numPublished == numImagesRecvd) {
+				t.Errorf("Num images published not equal to num images subscribed")
+			} else {
+				testErrMsg, testStatus := sliceEquality(tsPublished, tsSubscribed, imSizePublished, imSizeSubscribed)
+				if !testStatus {
+					t.Errorf("Subscribe after Publish fail - %v\n", testErrMsg)
+				}
+			}
+		} else {
+			if !(numImagesRecvd == test.logSize*test.segSize) {
+				t.Errorf("Num images published not equal to num images subscribed")
+			}
+		}
+
 	}
 
 }
