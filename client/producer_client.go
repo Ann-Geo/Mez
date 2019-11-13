@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/arun-ravindran/Raven/api/edgenode"
 )
+
+var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
 
 type ProducerClient struct {
 	Auth Authentication
@@ -72,10 +75,10 @@ func (pc *ProducerClient) PublishImage(client edgenode.PubSubClient) error {
 				return fmt.Errorf("errored while copying from file to buf")
 			}
 			time.Sleep(1 * time.Second)
-			ts, _ := time.Parse(time.RFC850, time.Now().Format(time.RFC850))
+			ts, _ := time.Parse(customTimeformat, time.Now().Format(customTimeformat))
 			err = stream.Send(&edgenode.Image{
-				Image:     buf[:n],                // Needed if n < chunksize
-				Timestamp: ts.Format(time.RFC850), // Timestamp the image
+				Image:     buf[:n],                     // Needed if n < chunksize
+				Timestamp: ts.Format(customTimeformat), // Timestamp the image
 			})
 			numSend++
 			log.Println("ProducerClient: Image size sent kB", n/1024)
@@ -94,4 +97,129 @@ func (pc *ProducerClient) PublishImage(client edgenode.PubSubClient) error {
 	}
 	log.Println("From TestBroker:PublishImage", reply)
 	return nil
+}
+
+func (pc *ProducerClient) PublishImageTest(client edgenode.PubSubClient, imageFilesPath string, numImagesInsert,
+	frameRate uint64, imSizeParam string) (string, []string, []int, uint64) {
+
+	var (
+		imBuf []byte
+	)
+	tsPublished := make([]string, 0)
+	imSizePublished := make([]int, 0)
+	var numSend uint64
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration((numImagesInsert*frameRate)+2000)*time.Second)
+	defer cancel()
+
+	// Open a stream to gRPC server
+	stream, err := client.Publish(ctx)
+	if err != nil {
+
+		return "error while invoking Publish", tsPublished, imSizePublished, numSend
+
+	}
+	defer stream.CloseSend()
+
+	// Read image file names
+	errMsg, files := walkAllFilesInDir(imageFilesPath)
+	if errMsg != "file read success" {
+		return "File read failed", tsPublished, imSizePublished, numSend
+
+	}
+
+	//slices to store timestamps and image sizes published
+
+	var i uint64
+
+	if imSizeParam == "S" {
+		for i = 0; i < numImagesInsert; i++ {
+			//read first file to buffer (conversion to bytes)
+			imBuf, err = ioutil.ReadFile(files[0])
+			if err != nil {
+				return "Cannot read image file", tsPublished, imSizePublished, numSend
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			tsPublished = append(tsPublished, ts)
+			numSend++
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+			}
+			imSizePublished = append(imSizePublished, len(imBuf))
+
+		}
+	} else {
+
+		for _, file := range files {
+			if numSend == numImagesInsert {
+				break
+			}
+			imBuf, err = ioutil.ReadFile(file)
+			if err != nil {
+				return "Cannot read image file", tsPublished, imSizePublished, numSend
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			tsPublished = append(tsPublished, ts)
+			numSend++
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+			}
+			imSizePublished = append(imSizePublished, len(imBuf))
+
+		}
+	}
+
+	_, err = stream.CloseAndRecv()
+	if err != nil {
+		return "stream CloseAndRecv() error", tsPublished, imSizePublished, numSend
+	}
+
+	return "publish success", tsPublished, imSizePublished, numSend
+}
+
+//***************************Helper functions*****************************************
+
+/*
+To return list of absolute paths of files in a directory
+This helper function is used to read the test images from input directory
+Input - directory path
+Output- error message, list of filepaths
+*/
+func walkAllFilesInDir(dir string) (string, []string) {
+	var errMsg string = "file read success"
+	fileList := make([]string, 0)
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			errMsg = "Incorrect file path"
+		}
+
+		// check if it is a regular file (not dir)
+		if info.Mode().IsRegular() {
+			fileList = append(fileList, path)
+
+		}
+		return nil
+	})
+
+	return errMsg, fileList
 }

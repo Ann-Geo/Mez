@@ -2,11 +2,13 @@
 package client
 
 import (
-	"github.com/arun-ravindran/Raven/api/edgeserver"
 	"context"
 	"io"
 	"log"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgenode"
+	"github.com/arun-ravindran/Raven/api/edgeserver"
 )
 
 type ConsumerClient struct {
@@ -59,4 +61,40 @@ func (cc *ConsumerClient) Unsubscribe(client edgeserver.PubSubClient) {
 	if err != nil {
 		log.Fatalf("Unsubscribe failed")
 	}
+}
+
+func (cc *ConsumerClient) SubscribeImageTest(client edgenode.PubSubClient, camid, latency, accuracy, tStart, tStop string) (string, []string, []int, uint64) {
+
+	tsSubscribed := make([]string, 0)
+	imSizeSubscribed := make([]int, 0)
+	var numImagesRecvd uint64
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	imPars := &edgenode.ImageStreamParameters{Camid: "cam1", Latency: "100", Accuracy: "100",
+		Start: tStart, Stop: tStop}
+
+	stream, err := client.Subscribe(ctx, imPars)
+	if err != nil {
+		return "error while invoking Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
+	}
+
+	for {
+		im, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "error while receiving stream from Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
+		}
+		numImagesRecvd++
+		ts := im.GetTimestamp()
+		imSize := len(im.GetImage())
+		tsSubscribed = append(tsSubscribed, ts)
+		imSizeSubscribed = append(imSizeSubscribed, imSize)
+
+	}
+
+	return "subscribe success", tsSubscribed, imSizeSubscribed, numImagesRecvd
 }

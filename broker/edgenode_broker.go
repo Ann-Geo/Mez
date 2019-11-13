@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
+
 type EdgeNodeBroker struct {
 	serverName      string
 	ipaddr          string
@@ -88,7 +90,7 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 		}
 
 		// Store image and timestamp
-		ts, _ := time.Parse(time.RFC850, im.GetTimestamp())
+		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 
 		s.store[s.serverName].Append(im.GetImage(), ts)
 
@@ -108,8 +110,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		s.stopSubcription = false
 	}
 
-	tstart, _ := time.Parse(time.RFC850, imPars.Start)
-	tstop, _ := time.Parse(time.RFC850, imPars.Stop)
+	tstart, _ := time.Parse(customTimeformat, imPars.Start)
+	tstop, _ := time.Parse(customTimeformat, imPars.Stop)
 
 	/* Latency Controller hook
 		lat := imPars.latency
@@ -145,7 +147,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				lastTs = image.Ts
 				if err := stream.Send(&edgenode.Image{
 					Image:     image.Im,
-					Timestamp: (image.Ts).Format(time.RFC850),
+					Timestamp: (image.Ts).Format(customTimeformat),
 				}); err != nil {
 					return fmt.Errorf("EdgeNodeBroker %s\n", err)
 				}
@@ -183,7 +185,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					lastTs = image.Ts
 					if err := stream.Send(&edgenode.Image{
 						Image:     image.Im,
-						Timestamp: (image.Ts).Format(time.RFC850),
+						Timestamp: (image.Ts).Format(customTimeformat),
 					}); err != nil {
 						return fmt.Errorf("EdgeNodeBroker %s\n", err)
 					}
