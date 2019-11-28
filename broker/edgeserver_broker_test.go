@@ -156,3 +156,42 @@ func TestESBrokerSubscribe(t *testing.T) {
 		fmt.Println(numImagesRecvd)
 	}
 }
+
+func TestESBSubscribeUnsubscribe(t *testing.T) {
+	var tests = []struct {
+		imageFilesPath  string
+		numImagesInsert uint64
+		frameRate       uint64
+		logSize         uint64
+		segSize         uint64
+		fillType        string
+		imSizeParam     string
+	}{
+		{"../../test_images/2.1M/", 800, 33, 10, 100, "NO", "S"},
+	}
+
+	for _, test := range tests {
+		tStart := (time.Now()).Format(customTimeformat)
+		err := runProducerClientTestESB(test.imageFilesPath, test.numImagesInsert, test.frameRate, test.imSizeParam)
+		if err != nil {
+			t.Fatalf("Publish failed - %v\n", err)
+		}
+		tStop := (time.Now()).Format(customTimeformat)
+		latency := "100"
+		accuracy := "1"
+		camid := "cam1"
+
+		subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd := runConsumerClientTestFromESB(camid, latency, accuracy, tStart, tStop)
+		if subErrMsg != "subscribe success" {
+			t.Fatalf("Subscribe failed - %v\n", subErrMsg)
+		}
+
+		fmt.Println(len(tsSubscribed))
+		fmt.Println(len(imSizeSubscribed))
+		fmt.Println(numImagesRecvd)
+
+		if client.NumImRcvdUnsubTest == 500 {
+			t.Errorf("Unsubscribe failed")
+		}
+	}
+}

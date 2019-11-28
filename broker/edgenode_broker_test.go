@@ -158,6 +158,40 @@ func TestSubscribeAfterPublish(t *testing.T) {
 
 }
 
+func TestSubscribeUnsubscribe(t *testing.T) {
+
+	var tests = []struct {
+		imageFilesPath  string
+		numImagesInsert uint64
+		frameRate       uint64
+		logSize         uint64
+		segSize         uint64
+		fillType        string
+		imSizeParam     string
+	}{
+		{"../../test_images/2.1M/", 800, 33, 10, 100, "NO", "S"},
+	}
+
+	for _, test := range tests {
+		tStart := (time.Now()).Format(customTimeformat)
+		runProducerClientTest(test.imageFilesPath, test.numImagesInsert,
+			test.frameRate, test.imSizeParam)
+
+		tStop := (time.Now()).Format(customTimeformat)
+		latency := "100"
+		accuracy := "1"
+		camid := "cam1"
+
+		runConsumerClientTestConcurrent(camid, latency, accuracy, tStart, tStop)
+
+		if client.NumImRcvdUnsubTest == 500 {
+			t.Errorf("Unsubscribe failed")
+		}
+
+	}
+
+}
+
 func TestPublishSubscribeConcurrent(t *testing.T) {
 	var tests = []struct {
 		imageFilesPath  string
@@ -261,4 +295,5 @@ func runConsumerClientTestConcurrent(camid, latency, accuracy string, tStart, tS
 	consumer.SubscribeImageTestConcurrent(cl, camid, latency, accuracy, tStart, tStop) // Test Subscribe API
 	//return subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd
 	fmt.Println(subErrMsg)
+
 }

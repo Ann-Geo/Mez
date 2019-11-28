@@ -16,6 +16,8 @@ type ConsumerClient struct {
 	Auth Authentication
 }
 
+var NumImRcvdUnsubTest uint64
+
 func NewConsumerClient(login, password string) *ConsumerClient {
 	return &ConsumerClient{Auth: Authentication{login: login, password: password}}
 }
@@ -120,6 +122,11 @@ func (cc *ConsumerClient) SubscribeImageTestConcurrent(client edgenode.PubSubCli
 		subErrMsg = "error while invoking Subscribe"
 	}
 
+	var camidstr []string
+	camidstr = append(camidstr, camid)
+
+	camInfo := &edgenode.CameraInfo{Camid: camidstr}
+
 	for {
 		im, err := stream.Recv()
 		if err == io.EOF {
@@ -130,6 +137,14 @@ func (cc *ConsumerClient) SubscribeImageTestConcurrent(client edgenode.PubSubCli
 			subErrMsg = "error while receiving stream from Subscribe"
 		}
 		numImagesRecvd++
+		NumImRcvdUnsubTest++
+
+		if NumImRcvdUnsubTest == 500 {
+
+			fmt.Println("unsubscribe API was invoked")
+			client.Unsubscribe(ctx, camInfo)
+		}
+
 		ts := im.GetTimestamp()
 		fmt.Println(ts)
 		imSize := len(im.GetImage())
@@ -162,6 +177,8 @@ func (cc *ConsumerClient) SubscribeImageTestESB(client edgeserver.PubSubClient, 
 		return "error while invoking Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
 	}
 
+	appInfo := &edgeserver.AppInfo{Camid: camid, Appid: "1"}
+
 	for {
 		im, err := stream.Recv()
 		if err == io.EOF {
@@ -171,6 +188,14 @@ func (cc *ConsumerClient) SubscribeImageTestESB(client edgeserver.PubSubClient, 
 			return "error while receiving stream from Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
 		}
 		numImagesRecvd++
+		NumImRcvdUnsubTest++
+
+		if NumImRcvdUnsubTest == 500 {
+
+			fmt.Println("unsubscribe API was invoked")
+			client.Unsubscribe(ctx, appInfo)
+		}
+
 		log.Printf("Consumer client: Number of images received %d, of size %d, and timestamp %s", numImagesRecvd, len(im.GetImage()), im.GetTimestamp())
 		ts := im.GetTimestamp()
 		imSize := len(im.GetImage())
