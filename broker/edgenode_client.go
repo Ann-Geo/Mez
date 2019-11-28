@@ -3,10 +3,11 @@
 package broker
 
 import (
-	"github.com/arun-ravindran/Raven/api/edgeserver"
 	"context"
 	"errors"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgeserver"
 )
 
 type EdgeNodeClient struct {
@@ -19,7 +20,7 @@ func NewEdgeNodeClient(login, password string) *EdgeNodeClient {
 
 func (cc *EdgeNodeClient) Register(ipaddr string, camid string, client edgeserver.PubSubClient) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
 	nodepars := &edgeserver.NodeInfo{Ipaddr: ipaddr, Camid: camid}

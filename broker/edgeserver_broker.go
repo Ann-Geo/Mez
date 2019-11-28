@@ -133,7 +133,6 @@ func (s *EdgeServerBroker) GetCameraInfo(ctx context.Context, campars *edgeserve
 
 // Called by consumer application
 func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, stream edgeserver.PubSub_SubscribeServer) error {
-
 	s.mutex.Lock()
 
 	_, pres := s.nodeInfoMap[impars.Camid]
@@ -153,6 +152,8 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	errchsub := make(chan error)
 	defer close(errchsub)
 
+	//first check to see anyone subscribing to that camera
+	//if no one then go subscribe
 	go s.subscribeFromEdgenode(impars, errchsub)
 
 	errsub := <-errchsub
@@ -162,8 +163,8 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 
 	// Serve image to consumer application
 
-	tstart, _ := time.Parse(time.RFC850, impars.Start)
-	tstop, _ := time.Parse(time.RFC850, impars.Stop)
+	tstart, _ := time.Parse(customTimeformat, impars.Start)
+	tstop, _ := time.Parse(customTimeformat, impars.Stop)
 
 	imts := make(chan storage.ImageTimestamp, 200*1024)
 	errch := make(chan error)
@@ -188,7 +189,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 				lastTs = image.Ts
 				if err := stream.Send(&edgeserver.Image{
 					Image:     image.Im,
-					Timestamp: (image.Ts).Format(time.RFC850),
+					Timestamp: (image.Ts).Format(customTimeformat),
 				}); err != nil {
 					return fmt.Errorf("EdgeServerBroker %s\n", err)
 				}
@@ -226,7 +227,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 					lastTs = image.Ts
 					if err := stream.Send(&edgeserver.Image{
 						Image:     image.Im,
-						Timestamp: (image.Ts).Format(time.RFC850),
+						Timestamp: (image.Ts).Format(customTimeformat),
 					}); err != nil {
 						return fmt.Errorf("EdgeServerBroker %s\n", err)
 					}

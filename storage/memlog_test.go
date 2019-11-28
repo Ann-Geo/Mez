@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -672,12 +671,12 @@ func TestReadAppended(t *testing.T) {
 		frameRate       uint64
 		fillType        string
 	}{
-		//{"../../test_images/1000_images/", 1000, 10, 100, 33, "NO"},
-		//{"../../test_images/1000_images/", 500, 10, 100, 33, "NO"},
-		//{"../../test_images/1000_images/", 545, 10, 30, 33, "O"},
-		//{"../../test_images/1000_images/", 545, 10, 30, 33, "O2"},
+		{"../../test_images/1000_images/", 1000, 10, 100, 33, "NO"},
+		{"../../test_images/1000_images/", 500, 10, 100, 33, "NO"},
+		{"../../test_images/1000_images/", 545, 10, 30, 33, "O"},
+		{"../../test_images/1000_images/", 545, 10, 30, 33, "O2"},
 		{"../../test_images/1000_images/", 15, 2, 5, 33, "O1"},
-		//{"../../test_images/1000_images/", 15, 2, 5, 33, "O2"},
+		{"../../test_images/1000_images/", 15, 2, 5, 33, "O2"},
 	}
 
 	for _, test := range tests {
@@ -692,7 +691,6 @@ func TestReadAppended(t *testing.T) {
 		}
 
 		start := time.Now()
-		fmt.Println("start -- ", start)
 
 		var tsFirstOverWrittenIndex time.Time
 		var tsLastImage time.Time
@@ -709,7 +707,6 @@ func TestReadAppended(t *testing.T) {
 
 				if readImCount == test.numImagesInsert {
 					tsLastImage = ts
-					fmt.Println("tsLastImage --", tsLastImage)
 					break
 				}
 				imBuf, err = ioutil.ReadFile(file)
@@ -722,19 +719,14 @@ func TestReadAppended(t *testing.T) {
 				ts = time.Now()
 				if readImCount == (test.segSize*test.logSize)+1 {
 					tsFirstOverWrittenIndex = ts
-					fmt.Println("tsFirstOverWrittenIndex--", tsFirstOverWrittenIndex)
 				}
 
 				//fmt.Println(ts)
 				memlog.Append(Image(imBuf), ts)
 				//Specify frame rate here
 				time.Sleep(time.Duration(test.frameRate) * time.Millisecond)
-				sz, pos, tins := memlog.AppendStats()
-				t.Logf("Image of size %d inserted in log at position %d at time %v\n", sz, pos, tins)
 
 			}
-			fmt.Println("append done")
-			fmt.Println(readImCount)
 		}()
 
 		if test.numImagesInsert == 15 {
@@ -743,8 +735,6 @@ func TestReadAppended(t *testing.T) {
 			time.Sleep(time.Duration((test.numImagesInsert*test.frameRate)+2000) * time.Millisecond)
 		}
 
-		fmt.Println("tsFirstOverWrittenIndex--", tsFirstOverWrittenIndex)
-		fmt.Println("tsLastImage --", tsLastImage)
 		stop := time.Now()
 		if test.fillType == "O1" {
 			start = tsFirstOverWrittenIndex.Add(10 * time.Millisecond)
@@ -753,16 +743,6 @@ func TestReadAppended(t *testing.T) {
 			start = tsFirstOverWrittenIndex.Add(10 * time.Millisecond)
 			stop = tsLastImage.Add(-10 * time.Millisecond)
 		}
-
-		//fmt.Println(st)
-
-		//sec, _:= time.ParseDuration("100ms")
-		//stop := start.Add(time.Millisecond * 1000)
-		fmt.Println("start--", start)
-		fmt.Println("stop --", stop)
-		t.Log("Read Start End", start, stop)
-
-		//fmt.Println(memlog.tsmemlog.tslog)
 
 		imts := make(chan ImageTimestamp, 200*1024)
 		errch := make(chan error)
@@ -786,7 +766,6 @@ func TestReadAppended(t *testing.T) {
 				select {
 				case it := <-imts:
 					readImageCount++
-					t.Logf("Size of image is %d and timestamp is %v \n", len(it.Im), it.Ts)
 					lastTsRead = it.Ts
 					ok = true
 
@@ -795,8 +774,6 @@ func TestReadAppended(t *testing.T) {
 				}
 			}
 		}
-
-		fmt.Println(readImageCount)
 
 		if test.fillType == "NO" {
 			if !(stop.After(lastTsRead)) {
@@ -809,12 +786,12 @@ func TestReadAppended(t *testing.T) {
 			if start.After(tsFirstOverWrittenIndex) {
 
 				if stop.After(tsLastImage) {
-					//fmt.Println(test.numImagesInsert - ((test.segSize * test.logSize) + 1))
+
 					if !(readImageCount <= test.numImagesInsert-((test.segSize*test.logSize)+1)) {
 						t.Errorf("case 3: Read failed - #images read do not match #images inserted")
 					}
 				} else {
-					//fmt.Println(test.numImagesInsert - ((test.segSize * test.logSize) + 2))
+
 					if !(readImageCount <= test.numImagesInsert-((test.segSize*test.logSize)+1)) {
 						t.Errorf("case 4: Read failed - #images read do not match #images inserted")
 					}

@@ -2,13 +2,14 @@
 package broker
 
 import (
-        "github.com/arun-ravindran/Raven/api/edgenode"
-        "github.com/arun-ravindran/Raven/api/edgeserver"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"time"
+
+	"github.com/arun-ravindran/Raven/api/edgenode"
+	"github.com/arun-ravindran/Raven/api/edgeserver"
 )
 
 type EdgeServerClient struct {
@@ -21,7 +22,7 @@ func NewEdgeServerClient(login, password string) *EdgeServerClient {
 
 func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
 	// Convert impars to edge node api image parameters
@@ -39,12 +40,13 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		if err == io.EOF {
 			break
 		}
+		//break in channel, time out
 		if err != nil {
 			return fmt.Errorf("Edgeserver client: failed to receive image via stream from edge node %v", err)
 		}
 
 		// Store image and timestamp got from edgenode
-		ts, _ := time.Parse(time.RFC850, im.GetTimestamp())
+		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 		s.store[impars.Camid].Append(im.GetImage(), ts)
 		numImagesRecvd++
 		log.Printf("EdgeServerClient: Number of images received %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)

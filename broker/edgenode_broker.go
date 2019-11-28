@@ -95,6 +95,7 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 		s.store[s.serverName].Append(im.GetImage(), ts)
 
 		numImagesRecvd++
+		fmt.Println(numImagesRecvd)
 	}
 }
 
@@ -168,12 +169,12 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			break
 		}
 
-		tstart = lastTs.Add(1 * time.Second) // TODO: Hacky - Read from 1 second later timestamp
+		tstart = lastTs.Add(68 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
 		go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 		errc := <-errch
 		if errc == storage.ErrTimestampMissing {
-			time.Sleep(1 * time.Second) // TODO: Hacky - Sleep for a second
+			time.Sleep(1000 * time.Millisecond) // TODO: Hacky - Sleep for a second
 			continue
 		}
 
@@ -195,7 +196,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				ok = false
 			}
 		}
-		time.Sleep(1 * time.Second) // TODO: Hacky - Sleep for a second
+		//no need of this sleep
+		time.Sleep(2000 * time.Millisecond) // TODO: Hacky - Sleep for a second
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -195,6 +196,209 @@ func (pc *ProducerClient) PublishImageTest(client edgenode.PubSubClient, imageFi
 	}
 
 	return "publish success", tsPublished, imSizePublished, numSend
+}
+
+func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClient, imageFilesPath string, numImagesInsert,
+	frameRate uint64, imSizeParam string) {
+
+	var (
+		imBuf []byte
+	)
+	publishErrMsg := "publish success"
+	tsPublished := make([]string, 0)
+	imSizePublished := make([]int, 0)
+	var numSend uint64
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration((numImagesInsert*frameRate)+2000)*time.Second)
+	defer cancel()
+
+	// Open a stream to gRPC server
+	stream, err := client.Publish(ctx)
+	if err != nil {
+
+		//return "error while invoking Publish", tsPublished, imSizePublished, numSend
+		publishErrMsg = "error while invoking Publish"
+
+	}
+	defer stream.CloseSend()
+
+	// Read image file names
+	errMsg, files := walkAllFilesInDir(imageFilesPath)
+	if errMsg != "file read success" {
+		//return "File read failed", tsPublished, imSizePublished, numSend
+		publishErrMsg = "File read failed"
+
+	}
+
+	//slices to store timestamps and image sizes published
+
+	var i uint64
+
+	if imSizeParam == "S" {
+		for i = 0; i < numImagesInsert; i++ {
+			//read first file to buffer (conversion to bytes)
+			imBuf, err = ioutil.ReadFile(files[0])
+			if err != nil {
+				//return "Cannot read image file", tsPublished, imSizePublished, numSend
+				publishErrMsg = "Cannot read image file"
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			tsPublished = append(tsPublished, ts)
+			numSend++
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				//return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+				publishErrMsg = "failed to send chunk via stream"
+			}
+			imSizePublished = append(imSizePublished, len(imBuf))
+
+		}
+	} else {
+
+		for _, file := range files {
+			if numSend == numImagesInsert {
+				break
+			}
+			imBuf, err = ioutil.ReadFile(file)
+			if err != nil {
+				//return "Cannot read image file", tsPublished, imSizePublished, numSend
+				publishErrMsg = "Cannot read image file"
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			tsPublished = append(tsPublished, ts)
+			numSend++
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				//return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+				publishErrMsg = "failed to send chunk via stream"
+			}
+			imSizePublished = append(imSizePublished, len(imBuf))
+
+		}
+	}
+
+	_, err = stream.CloseAndRecv()
+	if err != nil {
+		//return "stream CloseAndRecv() error", tsPublished, imSizePublished, numSend
+		publishErrMsg = "stream CloseAndRecv() error"
+	}
+
+	//return "publish success", tsPublished, imSizePublished, numSend
+	fmt.Println(publishErrMsg)
+
+}
+
+func (pc *ProducerClient) PublishImageTestESB(client edgenode.PubSubClient, imageFilesPath string, numImagesInsert,
+	frameRate uint64, imSizeParam string) error {
+
+	var (
+		imBuf []byte
+	)
+
+	var numSend uint64
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration((numImagesInsert*frameRate)+2000)*time.Second)
+	defer cancel()
+
+	// Open a stream to gRPC server
+	stream, err := client.Publish(ctx)
+	if err != nil {
+
+		return err
+
+	}
+	defer stream.CloseSend()
+
+	// Read image file names
+	errMsg, files := walkAllFilesInDir(imageFilesPath)
+	if errMsg != "file read success" {
+		err = errors.New("File read failed")
+		return err
+
+	}
+
+	//slices to store timestamps and image sizes published
+
+	var i uint64
+
+	if imSizeParam == "S" {
+		for i = 0; i < numImagesInsert; i++ {
+			//read first file to buffer (conversion to bytes)
+			imBuf, err = ioutil.ReadFile(files[0])
+			if err != nil {
+				return err
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			numSend++
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+
+		}
+	} else {
+
+		for _, file := range files {
+			if numSend == numImagesInsert {
+				break
+			}
+			imBuf, err = ioutil.ReadFile(file)
+			if err != nil {
+				return err
+
+			}
+			time.Sleep(time.Duration(frameRate) * time.Millisecond)
+			ts := time.Now().Format(customTimeformat)
+			err = stream.Send(&edgenode.Image{
+				Image:     imBuf,
+				Timestamp: ts,
+			})
+
+			numSend++
+			fmt.Println(numSend, len(imBuf))
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+
+		}
+	}
+
+	_, err = stream.CloseAndRecv()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //***************************Helper functions*****************************************
