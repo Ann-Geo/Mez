@@ -76,6 +76,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 // Publish only supported by Edge node brokers
 func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
+	fmt.Println("invoked")
 	// GRPC - Client side streaming
 	numImagesRecvd := 0
 	for {

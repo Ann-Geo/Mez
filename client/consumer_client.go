@@ -168,7 +168,7 @@ func (cc *ConsumerClient) SubscribeImageTestESB(client edgeserver.PubSubClient, 
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
-	imPars := &edgeserver.ImageStreamParameters{Camid: "cam1", Latency: "100", Accuracy: "100",
+	imPars := &edgeserver.ImageStreamParameters{Camid: camid, Latency: "100", Accuracy: "100",
 		Start: tStart, Stop: tStop}
 
 	stream, err := client.Subscribe(ctx, imPars)
@@ -196,7 +196,7 @@ func (cc *ConsumerClient) SubscribeImageTestESB(client edgeserver.PubSubClient, 
 			client.Unsubscribe(ctx, appInfo)
 		}
 
-		log.Printf("Consumer client: Number of images received %d, of size %d, and timestamp %s", numImagesRecvd, len(im.GetImage()), im.GetTimestamp())
+		//log.Printf("Consumer client: Number of images received %d, of size %d, and timestamp %s", numImagesRecvd, len(im.GetImage()), im.GetTimestamp())
 		ts := im.GetTimestamp()
 		imSize := len(im.GetImage())
 		tsSubscribed = append(tsSubscribed, ts)

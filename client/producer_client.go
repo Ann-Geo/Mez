@@ -320,6 +320,7 @@ func (pc *ProducerClient) PublishImageTestESB(client edgenode.PubSubClient, imag
 
 	// Open a stream to gRPC server
 	stream, err := client.Publish(ctx)
+
 	if err != nil {
 
 		return err

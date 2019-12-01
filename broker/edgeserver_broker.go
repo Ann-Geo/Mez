@@ -141,8 +141,11 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		return ErrNotRegistered
 	}
 
+	fmt.Println(impars.Camid)
+
 	// Inrement number of subscribers to camid
 	s.numbSubscribers[impars.Camid]++
+	//fmt.Println(s.numbSubscribers[impars.Camid])
 
 	s.stopSubcription[impars.Appid+impars.Camid] = false
 
@@ -153,12 +156,16 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	defer close(errchsub)
 
 	//first check to see anyone subscribing to that camera
-	//if no one then go subscribe
-	go s.subscribeFromEdgenode(impars, errchsub)
 
-	errsub := <-errchsub
-	if errsub != nil {
-		log.Println(errsub)
+	if s.numbSubscribers[impars.Camid] == 1 {
+		//if no one then go subscribe
+		fmt.Println("Sub from EN")
+		go s.subscribeFromEdgenode(impars, errchsub)
+
+		errsub := <-errchsub
+		if errsub != nil {
+			log.Println(errsub)
+		}
 	}
 
 	// Serve image to consumer application
@@ -172,6 +179,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	defer close(errch)
 
 	// Concurrent read of images from store got from edge node
+	fmt.Println("Read from ES log")
 	go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 
 	errc := <-errch
