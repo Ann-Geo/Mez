@@ -1,0 +1,30 @@
+syntax = "proto3";
+package controller;
+
+
+service LatencyController {
+    rpc SetTarget (Targets) returns (Status) {};
+    rpc Control (stream OriginalImage) returns (stream CustomImage) {};
+}
+
+
+
+message OriginalImage{
+    bytes image = 1;
+    string current_lat = 2;
+}
+
+message CustomImage {
+    bytes image = 1;
+    string acheived_acc = 2;
+}
+
+
+message Targets {
+    string target_lat = 1;
+    string target_acc = 2;
+}
+
+message Status {
+    bool status = 1;
+}

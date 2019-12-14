@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arun-ravindran/Raven/api/edgenode"
-	"github.com/arun-ravindran/Raven/api/edgeserver"
-	"github.com/arun-ravindran/Raven/storage"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"github.com/Ann-Geo/Mez/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"

@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/arun-ravindran/Raven/api/edgenode"
-	"github.com/arun-ravindran/Raven/api/edgeserver"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
 )
 
 type EdgeServerClient struct {

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/arun-ravindran/Raven/api/edgeserver"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
 )
 
 type EdgeNodeClient struct {

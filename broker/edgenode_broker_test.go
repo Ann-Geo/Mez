@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arun-ravindran/Raven/api/edgenode"
-	"github.com/arun-ravindran/Raven/client"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
