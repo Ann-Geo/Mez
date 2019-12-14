@@ -129,9 +129,9 @@ def chooseDataset(accStr):
 
 	
 #find image size delta need to be decreased or increased
-def findSizeDelta(currentLat, sumcurrentLat, targetLat):
+def findSizeDelta(currentLat, targetLat):
 	latDiff = abs(currentLat-targetLat)
-	sumlatDiff = abs(sumcurrentLat - targetLat)
+	sumLatError += latDiff
 	if currentLat == 0:
 		sizeDelta = 0
 	elif latDiff < 10:
@@ -156,7 +156,7 @@ def findSizeDelta(currentLat, sumcurrentLat, targetLat):
 		Kp = 2149.77
 		Ki = 2807.32
 
-	sizeDelta = Kp(latDiff) + Ki(sumlatDiff)
+	sizeDelta = Kp(latDiff) + Ki(sumLatError)
 	
 	return sizeDelta
 
@@ -476,6 +476,7 @@ jaadComplexHT = {}
 dukeSimpleHT = {}
 dukeMediumHT = {}
 dukeComplexHT = {}
+sumLatError = 0
 firstFrame = ""
 firstFramegray = np.zeros(5)
 
@@ -503,7 +504,6 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 
 	def Control(self, request_iterator, context):
 		currentLat = 0
-		sumcurrentLat = 0
 		currLatAvg = 0
 		imCount = 0
 		prevImSize = initialSize
@@ -514,10 +514,9 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 			imCount = imCount+1
 			currentLat += float(im.current_lat)
 			if imCount == frameRate:
-				sumcurrentLat += currentLat
 				currLatAvg = currentLat/frameRate
 						
-				sizeDelta = findSizeDelta(currLatAvg, sumcurrentLat, targetLat)
+				sizeDelta = findSizeDelta(currLatAvg, targetLat)
 				if currLatAvg - targetLat > 0:
 					if prevImSize != targetDataset.items()[0][0]:
 						newImSize = prevImSize - sizeDelta
