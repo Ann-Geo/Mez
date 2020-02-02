@@ -3,10 +3,19 @@ package edgenode;
 
 
 service PubSub {
+    rpc Connect(Url) returns (Id) {};
     rpc Publish(stream Image) returns (Status) {}  
     rpc Subscribe(ImageStreamParameters) returns (stream Image) {}
     rpc Unsubscribe(CameraInfo) returns (Status) {} 
     rpc LatencyCalc(LatencyMeasured) returns (Status) {};
+}
+
+message Url {
+    string address = 1;
+}
+
+message Id {
+    string id = 1;
 }
 
 message Image {

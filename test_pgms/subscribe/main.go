@@ -22,14 +22,14 @@ func main() {
 
 	time.Sleep(30 * time.Second)
 
-	consumer := client.NewConsumerClient("consClient", "edge") //user name password
+	consumer := client.NewConsumerClient("client", "edge") //user name password
 
 	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
 	if err != nil {
 		log.Fatalln("tls error")
 	}
 
-	// Connect consumer application with edge server broker
+	// Dial to Mez
 	connConsClient, err := grpc.Dial("127.0.0.1:20000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&consumer.Auth))
 	if err != nil {
 		log.Fatalln("could not connect with ESB")
@@ -40,12 +40,21 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
+	//Connect with Mez
+	connReq := &edgeserver.Url{
+		Address: "127.0.0.1:9050",
+	}
+	_, connErr := cl.Connect(context.Background(), connReq)
+	if connErr != nil {
+		log.Fatalf("error while calling Connect")
+	}
+
 	/**************************sub parameters***************************************/
 
 	tStop := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStop)
 	latency := "1"
-	accuracy := "0.47 jaad simple"
+	accuracy := "0.35 jaad complex"
 	camid := "cam1"
 	/******************************************************************************/
 

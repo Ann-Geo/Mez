@@ -3,11 +3,20 @@ package edgeserver;
 
 
 service PubSub {
+    rpc Connect(Url) returns (Id) {};
     rpc Register(NodeInfo) returns (Status) {}  
     rpc Unregister(NodeInfo) returns (Status) {} 
     rpc GetCameraInfo(CameraParameters) returns (CameraInfo) {}
     rpc Subscribe(ImageStreamParameters) returns (stream Image) {}
     rpc Unsubscribe(AppInfo) returns (Status) {} 
+}
+
+message Url {
+    string address = 1;
+}
+
+message Id {
+    string id = 1;
 }
 
 message Image {

@@ -17,19 +17,19 @@ import (
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
-var imageFilesPath string = "/home/research/pythonwork/SEM_5/openpose_obj_Det/simple/"
+var imageFilesPath string = "/home/research/pythonwork/SEM_5/openpose_obj_Det/complex/"
 var frameRate uint64 = 200
 
 func main() {
 
-	producer := client.NewProducerClient("prodClient", "edge")
+	producer := client.NewProducerClient("client", "edge")
 
 	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
 	if err != nil {
 		log.Fatalf("tls error")
 	}
 
-	// Connect test client with edge node broker
+	// Dial to Mez
 	connProdClient, err := grpc.Dial("127.0.0.1:10000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&producer.Auth))
 	if err != nil {
 		log.Fatalf("could not connect with EN broker")
@@ -39,6 +39,16 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
+
+	//Connect with Mez
+	connReq := &edgenode.Url{
+		Address: "127.0.0.1:9050",
+	}
+	_, connErr := cl.Connect(ctx, connReq)
+	if connErr != nil {
+		fmt.Println(connErr)
+		log.Fatalf("error while calling Connect")
+	}
 
 	// Open a stream to gRPC server
 	stream, err := cl.Publish(ctx)

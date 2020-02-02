@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -32,6 +33,7 @@ type EdgeNodeBroker struct {
 	mutex           sync.Mutex
 	store           map[string]storage.Store
 	stopSubcription bool
+	applicationPool map[string]string
 }
 
 func NewEdgeNodeBroker(sname, ipaddr string) *EdgeNodeBroker {
@@ -41,6 +43,7 @@ func NewEdgeNodeBroker(sname, ipaddr string) *EdgeNodeBroker {
 		mutex:           sync.Mutex{},
 		store:           make(map[string]storage.Store),
 		stopSubcription: false,
+		applicationPool: make(map[string]string),
 	}
 }
 
@@ -79,6 +82,22 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 }
 
 /************* Begin RPCs **************/
+//Connect API returns id assigned by Mez
+func (s *EdgeNodeBroker) Connect(ctx context.Context, url *edgenode.Url) (*edgenode.Id, error) {
+
+	fmt.Println("connect invoked")
+	//generates the id
+	id := int32(rand.Intn(100-0) + 0)
+
+	s.applicationPool[url.GetAddress()] = string(id)
+
+	resp := &edgenode.Id{
+		Id: string(id),
+	}
+
+	return resp, nil
+
+}
 
 // Publish only supported by Edge node brokers
 func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {

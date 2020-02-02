@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -26,6 +27,8 @@ type EdgeServerBroker struct {
 	nodeInfoMap     map[string]string // key is cameraid
 	numbSubscribers map[string]int    //key is cameraid
 	stopSubcription map[string]bool   // key is appid + cameraid
+	appMutex        sync.Mutex
+	applicationPool map[string]string
 }
 
 func NewEdgeServerBroker(sname, ipaddr string) *EdgeServerBroker {
@@ -37,6 +40,8 @@ func NewEdgeServerBroker(sname, ipaddr string) *EdgeServerBroker {
 		nodeInfoMap:     make(map[string]string),
 		numbSubscribers: make(map[string]int),
 		stopSubcription: make(map[string]bool),
+		appMutex:        sync.Mutex{},
+		applicationPool: make(map[string]string),
 	}
 }
 
@@ -66,6 +71,24 @@ func (s *EdgeServerBroker) StartEdgeServerBroker() {
 }
 
 /************* Begin RPCs **************/
+//Connect API returns id assigned by Mez
+func (s *EdgeServerBroker) Connect(ctx context.Context, url *edgeserver.Url) (*edgeserver.Id, error) {
+
+	//generates the id
+	id := int32(rand.Intn(100-0) + 0)
+
+	s.appMutex.Lock()
+	s.applicationPool[url.GetAddress()] = string(id)
+	s.appMutex.Unlock()
+
+	resp := &edgeserver.Id{
+		Id: string(id),
+	}
+
+	return resp, nil
+
+}
+
 // Called by Edge node
 func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.NodeInfo) (*edgeserver.Status, error) {
 	fmt.Println("invoked")

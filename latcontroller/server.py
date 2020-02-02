@@ -17,7 +17,6 @@ from collections import OrderedDict
 from concurrent import futures
 import pandas as pd
 import io
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 from PIL import Image
@@ -73,23 +72,27 @@ def loadData():
 	global jaadMediumHT
 	global jaadComplexHT
 
+	global dukeSimpleHT
+	global dukeMediumHT
+	global dukeComplexHT
+
+
 	jaadSimpleHT = createHashtable("jaad/simple.csv", 0.476886, 0.47)
-	#jaadSimpleHT = createHashtable("duke/simple.csv", 0.733139, 0.72)
 	jaadSimpleHT = OrderedDict((key, jaadSimpleHT[key]) for key in sorted(jaadSimpleHT))
-
 	jaadMediumHT = createHashtable("jaad/medium.csv", 0.457737, 0.4)
-	#jaadMediumHT = createHashtable("duke/medium.csv", 0.35267, 0.34)
-
 	jaadMediumHT = OrderedDict((key, jaadMediumHT[key]) for key in sorted(jaadMediumHT))
-
 	jaadComplexHT = createHashtable("jaad/complex.csv", 0.41989, 0.35)
-	#jaadComplexHT = createHashtable("duke/complex.csv", 0.47139, 0.43)
-	
 	jaadComplexHT = OrderedDict((key, jaadComplexHT[key]) for key in sorted(jaadComplexHT))
 
-	print("simple", jaadSimpleHT)
-	print("medium", jaadMediumHT)
-	print("complex", jaadComplexHT)
+
+	dukeSimpleHT = createHashtable("duke/simple.csv", 0.73315, 0.72)
+	dukeSimpleHT = OrderedDict((key, dukeSimpleHT[key]) for key in sorted(dukeSimpleHT))
+	dukeMediumHT = createHashtable("duke/medium.csv", 0.35266, 0.34)
+	dukeMediumHT = OrderedDict((key, dukeMediumHT[key]) for key in sorted(dukeMediumHT))
+	dukeComplexHT = createHashtable("duke/complex.csv", 0.47139, 0.43)
+	dukeComplexHT = OrderedDict((key, dukeComplexHT[key]) for key in sorted(dukeComplexHT))
+
+
 
 
 
@@ -120,10 +123,15 @@ def chooseDataset(accStr):
 	elif targetDataset == "duke":
 		if targetRegime == "simple":
 			targetDataset = dukeSimpleHT
+			firstFrame = cv2.imread("duke/firstframes/093232.png")
+
 		elif targetRegime == "medium":
 			targetDataset = dukeMediumHT
+			firstFrame = cv2.imread("duke/firstframes/086667.png")
+
 		else:
 			targetDataset = dukeComplexHT
+			firstFrame = cv2.imread("duke/firstframes/071878.png")
 
 
 	firstFrame = imutils.resize(firstFrame, width=500)
@@ -163,18 +171,14 @@ def findSizeDelta(currentLat, targetLat):
 
 #find knobs from hashtable
 def findKnobs(imSize):
-	print("imSize=", imSize)
-	print(len(list(targetDataset.keys())))
 	ind = bisect.bisect_left(list(targetDataset.keys()), imSize)
 	if ind!=0:
 		ind=ind-1	
-	print("ind=", ind)
 	newImSize = targetDataset.items()[ind][0]
 	knobAndAcc = targetDataset.items()[ind][1]
 	knob = knobAndAcc[0]
 	acc = knobAndAcc[1]
 	knob = [x.strip() for x in knob.split(',')]
-	print(newImSize, knob, acc)
 
 	return newImSize, knob, acc
 	
@@ -486,7 +490,6 @@ firstFramegray = np.zeros(5)
 
 class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerServicer):
 	def SetTarget(self, request, context):
-		print("SetTarget RPC invoked")
 		global targetLat 
 		global targetDataset
 		global targetAcc  
@@ -494,7 +497,6 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		targetLat = float(request.target_lat)
 		targetAcc, targetDataset = chooseDataset(request.target_acc)
 
-		print(targetDataset)
 		status = controller_api_pb2.Status(status=True)
 		return status
 		
@@ -510,11 +512,9 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		prevImSize = initialSize
 		knob = ["'R2'", "'C1'", "'K1'", "'D1'", "'F1'"]
 		acheivedAcc = "0.4" #max accuracy
-		print("Control RPC invoked")
 		for im in request_iterator:			
 			imCount = imCount+1
 			imRecTimeAndCurrLat = im.current_lat.split('and')
-			print(imRecTimeAndCurrLat)
 			currentLat += float(imRecTimeAndCurrLat[1])
 			if imCount == frameRate:
 				currLatAvg = currentLat/frameRate
@@ -536,19 +536,13 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 
 				imCount = 0
 				currentLat = 0
-
-			print("currentLat=", currentLat)
-			print("currLatAvg=", currLatAvg)
-			print("lat error=", currLatAvg-targetLat)
-			print(knob)
-			print(type(im.image))	
+	
 			modImBytes = modifyImage(knob, im.image)
 			
 			response = controller_api_pb2.CustomImage()
 			response.image = modImBytes
 			response.acheived_acc = imRecTimeAndCurrLat[0]+"and"+acheivedAcc
 
-			print("response sent")
 
             		yield response
 			
