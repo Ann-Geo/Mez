@@ -215,7 +215,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		log.Printf("EdgeNodeBroker %s\n", errc)
 	}
 
-	//var lastTs storage.Timestamp
+	var lastTs storage.Timestamp
 
 	ok := true
 	for ok {
@@ -237,51 +237,50 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 			ok = false
 		}
 	}
-	/*
-		numIter := 0
-		for lastTs.Before(tstop) { // More reading to be done; Poll
-			if s.stopSubcription[impars.Appid+impars.Camid] { // From Unsubscribe API
-				break
-			}
-			numIter++
-			if numIter > maxPollTime {
-				break
-			}
 
-			tstart = lastTs.Add(1 * time.Second) // TODO: Hacky - Read from 1 second later timestamp
-			fmt.Println("here1111111111111111111")
-
-			go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
-			errc := <-errch
-			if errc == storage.ErrTimestampMissing {
-				time.Sleep(1 * time.Second) // TODO: Hacky - Sleep for a second
-				fmt.Println("here22222222222222222")
-				continue
-			}
-			ok = true
-			for ok {
-				select {
-				case image := <-imts:
-					{
-						lastTs = image.Ts
-						if err := stream.Send(&edgeserver.Image{
-							Image:     image.Im,
-							Timestamp: (image.Ts).Format(customTimeformat),
-						}); err != nil {
-							return fmt.Errorf("EdgeServerBroker %s\n", err)
-						}
-						ok = true
-					}
-				default:
-					ok = false
-				}
-			}
-
-			time.Sleep(1 * time.Second) // Sleep for a second
-			fmt.Println("here333333333333333333333")
-
+	numIter := 3
+	for lastTs.Before(tstop) { // More reading to be done; Poll
+		if s.stopSubcription[impars.Appid+impars.Camid] { // From Unsubscribe API
+			break
 		}
-	*/
+		numIter++
+		if numIter > maxPollTime {
+			break
+		}
+
+		tstart = lastTs.Add(1 * time.Second) // TODO: Hacky - Read from 1 second later timestamp
+		fmt.Println("here1111111111111111111")
+
+		go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
+		errc := <-errch
+		if errc == storage.ErrTimestampMissing {
+			time.Sleep(1 * time.Second) // TODO: Hacky - Sleep for a second
+			fmt.Println("here22222222222222222")
+			continue
+		}
+		ok = true
+		for ok {
+			select {
+			case image := <-imts:
+				{
+					lastTs = image.Ts
+					if err := stream.Send(&edgeserver.Image{
+						Image:     image.Im,
+						Timestamp: (image.Ts).Format(customTimeformat),
+					}); err != nil {
+						return fmt.Errorf("EdgeServerBroker %s\n", err)
+					}
+					ok = true
+				}
+			default:
+				ok = false
+			}
+		}
+
+		time.Sleep(1 * time.Second) // Sleep for a second
+		fmt.Println("here333333333333333333333")
+
+	}
 
 	return nil
 
