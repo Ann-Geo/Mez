@@ -73,16 +73,23 @@ def loadData():
 	global jaadMediumHT
 	global jaadComplexHT
 
-	jaadSimpleHT = createHashtable("jaad/simple.csv", 0.476886, 0.33)
+	jaadSimpleHT = createHashtable("jaad/simple.csv", 0.476886, 0.47)
+	#jaadSimpleHT = createHashtable("duke/simple.csv", 0.733139, 0.72)
 	jaadSimpleHT = OrderedDict((key, jaadSimpleHT[key]) for key in sorted(jaadSimpleHT))
 
-	jaadMediumHT = createHashtable("jaad/medium.csv", 0.457737, 0.32)
+	jaadMediumHT = createHashtable("jaad/medium.csv", 0.457737, 0.4)
+	#jaadMediumHT = createHashtable("duke/medium.csv", 0.35267, 0.34)
+
 	jaadMediumHT = OrderedDict((key, jaadMediumHT[key]) for key in sorted(jaadMediumHT))
 
-	jaadComplexHT = createHashtable("jaad/complex.csv", 0.41989, 0.29)
+	jaadComplexHT = createHashtable("jaad/complex.csv", 0.41989, 0.35)
+	#jaadComplexHT = createHashtable("duke/complex.csv", 0.47139, 0.43)
+	
 	jaadComplexHT = OrderedDict((key, jaadComplexHT[key]) for key in sorted(jaadComplexHT))
 
-
+	print("simple", jaadSimpleHT)
+	print("medium", jaadMediumHT)
+	print("complex", jaadComplexHT)
 
 
 
@@ -128,35 +135,25 @@ def chooseDataset(accStr):
 
 
 	
-#find image size delta need to be decreased or increased
+#find image size need to be decreased or increased
 def findSizeDelta(currentLat, targetLat):
 	latDiff = abs(currentLat-targetLat)
-	sumLatError += latDiff
 	if currentLat == 0:
 		sizeDelta = 0
 	elif latDiff < 10:
-		Kp = 3568.9
-		Ki = 2446.32
+		sizeDelta = 50000
 	elif latDiff >= 10 and latDiff < 20:
-		Kp = 4523.67
-		Ki = 4094.9
+		sizeDelta = 100000
 	elif latDiff >= 20 and latDiff < 40:
-		Kp = 4860.33
-		Ki = 2979.11
+		sizeDelta = 200000
 	elif latDiff >= 40 and latDiff < 80:
-		Kp = 3661.5
-		Ki = 7189.39
+		sizeDelta = 400000
 	elif latDiff >= 80 and latDiff < 100:
-		Kp = 3546.87
-		Ki = 7375.38
+		sizeDelta = 600000
 	elif latDiff >= 100 and latDiff < 200:
-		Kp = 2470.48
-		Ki = 6127.73
+		sizeDelta = 700000
 	else:
-		Kp = 2149.77
-		Ki = 2807.32
-
-	sizeDelta = Kp(latDiff) + Ki(sumLatError)
+		sizeDelta = 800000
 	
 	return sizeDelta
 
@@ -166,14 +163,18 @@ def findSizeDelta(currentLat, targetLat):
 
 #find knobs from hashtable
 def findKnobs(imSize):
+	print("imSize=", imSize)
+	print(len(list(targetDataset.keys())))
 	ind = bisect.bisect_left(list(targetDataset.keys()), imSize)
 	if ind!=0:
 		ind=ind-1	
+	print("ind=", ind)
 	newImSize = targetDataset.items()[ind][0]
 	knobAndAcc = targetDataset.items()[ind][1]
 	knob = knobAndAcc[0]
 	acc = knobAndAcc[1]
 	knob = [x.strip() for x in knob.split(',')]
+	print(newImSize, knob, acc)
 
 	return newImSize, knob, acc
 	
@@ -476,7 +477,6 @@ jaadComplexHT = {}
 dukeSimpleHT = {}
 dukeMediumHT = {}
 dukeComplexHT = {}
-sumLatError = 0
 firstFrame = ""
 firstFramegray = np.zeros(5)
 
@@ -494,6 +494,7 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		targetLat = float(request.target_lat)
 		targetAcc, targetDataset = chooseDataset(request.target_acc)
 
+		print(targetDataset)
 		status = controller_api_pb2.Status(status=True)
 		return status
 		
@@ -508,11 +509,13 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		imCount = 0
 		prevImSize = initialSize
 		knob = ["'R2'", "'C1'", "'K1'", "'D1'", "'F1'"]
-		acheivedAcc = "0.4" #means max accuracy
+		acheivedAcc = "0.4" #max accuracy
 		print("Control RPC invoked")
 		for im in request_iterator:			
 			imCount = imCount+1
-			currentLat += float(im.current_lat)
+			imRecTimeAndCurrLat = im.current_lat.split('and')
+			print(imRecTimeAndCurrLat)
+			currentLat += float(imRecTimeAndCurrLat[1])
 			if imCount == frameRate:
 				currLatAvg = currentLat/frameRate
 						
@@ -534,12 +537,18 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 				imCount = 0
 				currentLat = 0
 
-	
+			print("currentLat=", currentLat)
+			print("currLatAvg=", currLatAvg)
+			print("lat error=", currLatAvg-targetLat)
+			print(knob)
+			print(type(im.image))	
 			modImBytes = modifyImage(knob, im.image)
 			
 			response = controller_api_pb2.CustomImage()
 			response.image = modImBytes
-			response.acheived_acc = acheivedAcc
+			response.acheived_acc = imRecTimeAndCurrLat[0]+"and"+acheivedAcc
+
+			print("response sent")
 
             		yield response
 			
@@ -559,7 +568,7 @@ def serve():
 	controller_api_pb2_grpc.add_LatencyControllerServicer_to_server(LatencyControllerServicer(), server)
 	server.add_insecure_port('[::]:9002')
     	server.start()
-	print("Latency Controller started")
+	print("controller started")
 	try:
         	while True:
             		time.sleep(5)

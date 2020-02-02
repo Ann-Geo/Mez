@@ -6,6 +6,7 @@ service PubSub {
     rpc Publish(stream Image) returns (Status) {}  
     rpc Subscribe(ImageStreamParameters) returns (stream Image) {}
     rpc Unsubscribe(CameraInfo) returns (Status) {} 
+    rpc LatencyCalc(LatencyMeasured) returns (Status) {};
 }
 
 message Image {
@@ -27,4 +28,8 @@ message ImageStreamParameters {
 
 message Status {
     bool status = 1;
+}
+
+message LatencyMeasured{
+    string current_lat = 1;
 }

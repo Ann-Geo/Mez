@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ann-Geo/Mez/api/edgenode"
-	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"vsc_workspace/Mez_upload/api/edgenode"
+	"vsc_workspace/Mez_upload/api/edgeserver"
 )
 
 type ConsumerClient struct {

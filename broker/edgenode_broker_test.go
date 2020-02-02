@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ann-Geo/Mez/api/edgenode"
-	"github.com/Ann-Geo/Mez/client"
+	"vsc_workspace/Mez_upload/api/edgenode"
+	"vsc_workspace/Mez_upload/client"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )

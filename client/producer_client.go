@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Ann-Geo/Mez/api/edgenode"
+	"vsc_workspace/Mez_upload/api/edgenode"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"

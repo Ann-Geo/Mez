@@ -10,15 +10,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ann-Geo/Mez/api/edgenode"
-	"github.com/Ann-Geo/Mez/api/edgeserver"
-	"github.com/Ann-Geo/Mez/storage"
+	"vsc_workspace/Mez_upload/api/controller"
+	"vsc_workspace/Mez_upload/api/edgenode"
+	"vsc_workspace/Mez_upload/api/edgeserver"
+	"vsc_workspace/Mez_upload/storage"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
+
+var actController string = "1"
+var curLatLock sync.Mutex
+var currentLat string
 
 type EdgeNodeBroker struct {
 	serverName      string
@@ -46,7 +52,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 	}
 
 	// Create the TLS credentials
-	creds, err := credentials.NewServerTLSFromFile("cert/server.crt", "cert/server.key")
+	creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
 	if err != nil {
 		return fmt.Errorf("could not load TLS keys: %s", err)
 	}
@@ -76,7 +82,9 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 // Publish only supported by Edge node brokers
 func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
+
 	fmt.Println("invoked")
+
 	// GRPC - Client side streaming
 	numImagesRecvd := 0
 	for {
@@ -96,7 +104,36 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 		s.store[s.serverName].Append(im.GetImage(), ts)
 
 		numImagesRecvd++
-		fmt.Println(numImagesRecvd)
+		fmt.Println(numImagesRecvd, ts)
+	}
+}
+
+type enbWithCntlrClient struct {
+	numPublished uint64
+	initialLat   string
+	subResChan   chan controller.CustomImage
+	conn         *grpc.ClientConn
+	cl           controller.LatencyControllerClient
+	store        map[string]storage.Store
+}
+
+func newEnbWithCntlrClient(ipaddrCont string) *enbWithCntlrClient {
+	//new client to python server
+	conn, err := grpc.Dial(ipaddrCont, grpc.WithInsecure())
+
+	if err != nil {
+		log.Fatalf("Could not connect %v\n", err)
+	}
+
+	cl := controller.NewLatencyControllerClient(conn)
+	fmt.Printf("Created client %v\n", cl)
+	return &enbWithCntlrClient{
+		numPublished: 0,
+		initialLat:   "1",
+		subResChan:   make(chan controller.CustomImage),
+		conn:         conn,
+		cl:           cl,
+		store:        make(map[string]storage.Store),
 	}
 }
 
@@ -112,8 +149,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		s.stopSubcription = false
 	}
 
-	tstart, _ := time.Parse(customTimeformat, imPars.Start)
-	tstop, _ := time.Parse(customTimeformat, imPars.Stop)
+	tstart, _ := time.Parse(customTimeformat, imPars.GetStart())
+	tstop, _ := time.Parse(customTimeformat, imPars.GetStop())
 
 	/* Latency Controller hook
 		lat := imPars.latency
@@ -139,52 +176,114 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		log.Printf("EdgeNodeBroker %s\n", errc)
 	}
 
-	var lastTs storage.Timestamp
+	//var lastTs storage.Timestamp
 
-	ok := true
-	for ok {
-		select {
-		case image := <-imts:
-			{
-				lastTs = image.Ts
-				if err := stream.Send(&edgenode.Image{
-					Image:     image.Im,
-					Timestamp: (image.Ts).Format(customTimeformat),
-				}); err != nil {
-					return fmt.Errorf("EdgeNodeBroker %s\n", err)
+	if actController == "1" {
+		fmt.Println("inside controller")
+		curLatLock.Lock()
+		currentLat = "1"
+		curLatLock.Unlock()
+
+		//connect the ENB client with controller server
+		enbC := newEnbWithCntlrClient("0.0.0.0:9002")
+		//create a new storage
+		enbC.store["modified"] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
+
+		//Get targets to send to control
+		conTargets := &controller.Targets{
+			TargetLat: imPars.GetLatency(),
+			TargetAcc: imPars.GetAccuracy(),
+		}
+		//call set taget rpc of controller
+		_, err := enbC.cl.SetTarget(context.Background(), conTargets)
+		if err != nil {
+			return err
+		}
+
+		//invoke the Control RPC
+		conStream, err := enbC.cl.Control(context.Background())
+		if err != nil {
+			return err
+
+		}
+
+		waitc := make(chan struct{})
+		//receiving modified images from the controller
+		go func() {
+			for {
+				res, err := conStream.Recv()
+				if err == io.EOF {
+					break
 				}
-				ok = true
+				if err != nil {
+					log.Fatalf("Error while receiving: %v\n", err)
+					break
+				}
+				fmt.Println("Received from controller")
+
+				//save the images to the log
+				ts := time.Now()
+				img := res.GetImage()
+				tsRec, _ := time.Parse(customTimeformat, strings.Split(res.GetAcheivedAcc(), "and")[0])
+				enbC.store["modified"].Append(img, tsRec)
+
+				//send it to the ES broker
+				modIm := &edgenode.Image{
+					Image:     img,
+					Timestamp: ts.Format(customTimeformat) + "and" + res.GetAcheivedAcc(),
+				}
+				stream.Send(modIm)
+
+				/*
+					enbC.subResChan <- controller.CustomImage{
+						Image:       res.GetImage(),
+						AcheivedAcc: res.GetAcheivedAcc(),
+					}*/
 			}
-		default:
-			ok = false
-		}
-	}
+			time.Sleep(500 * time.Millisecond)
+			close(waitc)
+			//close(enbC.subResChan)
+		}()
 
-	numIter := 0
-	for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
-		if s.stopSubcription { // From Unsubscribe API
-			break
-		}
-		numIter++
-		if numIter > maxPollTime {
-			break
-		}
-
-		tstart = lastTs.Add(68 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
-		go s.store[s.serverName].Read(imts, tstart, tstop, errch)
-
-		errc := <-errch
-		if errc == storage.ErrTimestampMissing {
-			time.Sleep(1000 * time.Millisecond) // TODO: Hacky - Sleep for a second
-			continue
-		}
-
-		ok = true
+		//images read from log are send to the controller
+		ok := true
 		for ok {
 			select {
 			case image := <-imts:
 				{
-					lastTs = image.Ts
+					//lastTs = image.Ts
+					fmt.Println("Sending original image to controller")
+					time.Sleep(200 * time.Millisecond)
+					curLatLock.Lock()
+					req := &controller.OriginalImage{
+						Image:      image.Im,
+						CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
+					}
+					fmt.Println(currentLat)
+					curLatLock.Unlock()
+					conStream.Send(req)
+					ok = true
+				}
+			default:
+				ok = false
+			}
+		}
+
+		conStream.CloseSend()
+
+		//wait on the channel to receive modified images
+		<-waitc
+		//time.Sleep(500 * time.Millisecond)
+		fmt.Println("sending done")
+
+	} else {
+
+		ok := true
+		for ok {
+			select {
+			case image := <-imts:
+				{
+					//lastTs = image.Ts
 					if err := stream.Send(&edgenode.Image{
 						Image:     image.Im,
 						Timestamp: (image.Ts).Format(customTimeformat),
@@ -197,8 +296,48 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				ok = false
 			}
 		}
-		//no need of this sleep
-		time.Sleep(2000 * time.Millisecond) // TODO: Hacky - Sleep for a second
+		/*
+			numIter := 0
+			for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
+				if s.stopSubcription { // From Unsubscribe API
+					break
+				}
+				numIter++
+				if numIter > maxPollTime {
+					break
+				}
+
+				tstart = lastTs.Add(68 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
+				go s.store[s.serverName].Read(imts, tstart, tstop, errch)
+
+				errc := <-errch
+				if errc == storage.ErrTimestampMissing {
+					time.Sleep(1000 * time.Millisecond) // TODO: Hacky - Sleep for a second
+					continue
+				}
+
+				ok = true
+				for ok {
+					select {
+					case image := <-imts:
+						{
+							lastTs = image.Ts
+							if err := stream.Send(&edgenode.Image{
+								Image:     image.Im,
+								Timestamp: (image.Ts).Format(customTimeformat),
+							}); err != nil {
+								return fmt.Errorf("EdgeNodeBroker %s\n", err)
+							}
+							ok = true
+						}
+					default:
+						ok = false
+					}
+				}
+				//no need of this sleep
+				time.Sleep(2000 * time.Millisecond) // TODO: Hacky - Sleep for a second
+			}
+		*/
 	}
 
 	return nil
@@ -211,6 +350,20 @@ func (s *EdgeNodeBroker) Unsubscribe(ctx context.Context, caminfo *edgenode.Came
 	return &edgenode.Status{
 		Status: true,
 	}, nil
+}
+
+func (s *EdgeNodeBroker) LatencyCalc(ctx context.Context, lat *edgenode.LatencyMeasured) (*edgenode.Status, error) {
+	fmt.Printf("LatencyCalc RPC was invoked with %v\n", lat)
+
+	curLatLock.Lock()
+	currentLat = lat.GetCurrentLat()
+	curLatLock.Unlock()
+	fmt.Println(lat.GetCurrentLat())
+
+	status := &edgenode.Status{
+		Status: true,
+	}
+	return status, nil
 }
 
 /************* End RPCs **************/
@@ -246,7 +399,7 @@ func (s *EdgeNodeBroker) UnaryInterceptor(ctx context.Context, req interface{}, 
 func (s *EdgeNodeBroker) regsterWithEdgeServer(edgeServerIpaddr, login, password string) error {
 	en := NewEdgeNodeClient(login, password) //username and password
 
-	creds, err := credentials.NewClientTLSFromFile("cert/server.crt", "")
+	creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
 	if err != nil {
 		return fmt.Errorf("EdgeNodeBroker: could not load tls cert: %s\n", err)
 	}
