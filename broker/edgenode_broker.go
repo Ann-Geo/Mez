@@ -195,7 +195,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		log.Printf("EdgeNodeBroker %s\n", errc)
 	}
 
-	//var lastTs storage.Timestamp
+	var lastTs storage.Timestamp
 
 	if actController == "1" {
 		fmt.Println("inside controller")
@@ -253,15 +253,9 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				}
 				stream.Send(modIm)
 
-				/*
-					enbC.subResChan <- controller.CustomImage{
-						Image:       res.GetImage(),
-						AcheivedAcc: res.GetAcheivedAcc(),
-					}*/
 			}
 			time.Sleep(500 * time.Millisecond)
 			close(waitc)
-			//close(enbC.subResChan)
 		}()
 
 		//images read from log are send to the controller
@@ -270,7 +264,6 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			select {
 			case image := <-imts:
 				{
-					//lastTs = image.Ts
 					fmt.Println("Sending original image to controller")
 					time.Sleep(200 * time.Millisecond)
 					curLatLock.Lock()
@@ -289,10 +282,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		}
 
 		conStream.CloseSend()
-
-		//wait on the channel to receive modified images
 		<-waitc
-		//time.Sleep(500 * time.Millisecond)
 		fmt.Println("sending done")
 
 	} else {
@@ -302,7 +292,6 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			select {
 			case image := <-imts:
 				{
-					//lastTs = image.Ts
 					if err := stream.Send(&edgenode.Image{
 						Image:     image.Im,
 						Timestamp: (image.Ts).Format(customTimeformat),
@@ -315,48 +304,47 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				ok = false
 			}
 		}
-		/*
-			numIter := 0
-			for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
-				if s.stopSubcription { // From Unsubscribe API
-					break
-				}
-				numIter++
-				if numIter > maxPollTime {
-					break
-				}
 
-				tstart = lastTs.Add(68 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
-				go s.store[s.serverName].Read(imts, tstart, tstop, errch)
-
-				errc := <-errch
-				if errc == storage.ErrTimestampMissing {
-					time.Sleep(1000 * time.Millisecond) // TODO: Hacky - Sleep for a second
-					continue
-				}
-
-				ok = true
-				for ok {
-					select {
-					case image := <-imts:
-						{
-							lastTs = image.Ts
-							if err := stream.Send(&edgenode.Image{
-								Image:     image.Im,
-								Timestamp: (image.Ts).Format(customTimeformat),
-							}); err != nil {
-								return fmt.Errorf("EdgeNodeBroker %s\n", err)
-							}
-							ok = true
-						}
-					default:
-						ok = false
-					}
-				}
-				//no need of this sleep
-				time.Sleep(2000 * time.Millisecond) // TODO: Hacky - Sleep for a second
+		numIter := 3
+		for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
+			if s.stopSubcription {
+				break
 			}
-		*/
+			numIter++
+			if numIter > maxPollTime {
+				break
+			}
+
+			tstart = lastTs.Add(68 * time.Millisecond)
+			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
+
+			errc := <-errch
+			if errc == storage.ErrTimestampMissing {
+				time.Sleep(1000 * time.Millisecond)
+				continue
+			}
+
+			ok = true
+			for ok {
+				select {
+				case image := <-imts:
+					{
+						lastTs = image.Ts
+						if err := stream.Send(&edgenode.Image{
+							Image:     image.Im,
+							Timestamp: (image.Ts).Format(customTimeformat),
+						}); err != nil {
+							return fmt.Errorf("EdgeNodeBroker %s\n", err)
+						}
+						ok = true
+					}
+				default:
+					ok = false
+				}
+			}
+			time.Sleep(2000 * time.Millisecond)
+		}
+
 	}
 
 	return nil
