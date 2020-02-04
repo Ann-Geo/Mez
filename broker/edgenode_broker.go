@@ -23,7 +23,6 @@ import (
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
 
-var actController string = "1"
 var curLatLock sync.Mutex
 var currentLat string
 
@@ -34,9 +33,10 @@ type EdgeNodeBroker struct {
 	store           map[string]storage.Store
 	stopSubcription bool
 	applicationPool map[string]string
+	actController   string
 }
 
-func NewEdgeNodeBroker(sname, ipaddr string) *EdgeNodeBroker {
+func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
 	return &EdgeNodeBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -44,10 +44,12 @@ func NewEdgeNodeBroker(sname, ipaddr string) *EdgeNodeBroker {
 		store:           make(map[string]storage.Store),
 		stopSubcription: false,
 		applicationPool: make(map[string]string),
+		actController:   actController,
 	}
 }
 
 func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password string) error {
+	fmt.Println(s.actController)
 	log.Println("Starting edge node broker", s.serverName)
 	lis, err := net.Listen("tcp", s.ipaddr)
 	if err != nil {
@@ -197,7 +199,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 
 	var lastTs storage.Timestamp
 
-	if actController == "1" {
+	if s.actController == "1" {
 		fmt.Println("inside controller")
 		curLatLock.Lock()
 		currentLat = "1"

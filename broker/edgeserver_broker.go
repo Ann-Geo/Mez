@@ -29,9 +29,10 @@ type EdgeServerBroker struct {
 	stopSubcription map[string]bool   // key is appid + cameraid
 	appMutex        sync.Mutex
 	applicationPool map[string]string
+	actController   string
 }
 
-func NewEdgeServerBroker(sname, ipaddr string) *EdgeServerBroker {
+func NewEdgeServerBroker(sname, ipaddr, actController string) *EdgeServerBroker {
 	return &EdgeServerBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -42,6 +43,7 @@ func NewEdgeServerBroker(sname, ipaddr string) *EdgeServerBroker {
 		stopSubcription: make(map[string]bool),
 		appMutex:        sync.Mutex{},
 		applicationPool: make(map[string]string),
+		actController:   actController,
 	}
 }
 
@@ -327,7 +329,7 @@ func (s *EdgeServerBroker) UnaryInterceptor(ctx context.Context, req interface{}
 func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamParameters, errch chan<- error) {
 	// TO DO: edge node username and password are hardcoded
 
-	if actController == "0" {
+	if s.actController == "0" {
 
 		cons := NewEdgeServerClient("client", "edge") //username and password
 
