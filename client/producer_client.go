@@ -13,17 +13,52 @@ import (
 	"time"
 
 	"vsc_workspace/Mez_upload/api/edgenode"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
 
 type ProducerClient struct {
-	Auth Authentication
+	Auth           Authentication
+	ConnProdClient *grpc.ClientConn
+	Cl             edgenode.PubSubClient
+	Cancel         context.CancelFunc
+	Ctx            context.Context
 }
 
 func NewProducerClient(login, password string) *ProducerClient {
 	return &ProducerClient{Auth: Authentication{login: login, password: password}}
 
+}
+
+func (pc *ProducerClient) Connect(url, userAddress string) error {
+	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	if err != nil {
+		return err
+	}
+
+	// Dial to Mez
+	pc.ConnProdClient, err = grpc.Dial(url, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&pc.Auth))
+	if err != nil {
+		return err
+	}
+
+	pc.Cl = edgenode.NewPubSubClient(pc.ConnProdClient)
+
+	pc.Ctx, pc.Cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+	//Connect with Mez
+	connReq := &edgenode.Url{
+		Address: userAddress,
+	}
+	_, connErr := pc.Cl.Connect(pc.Ctx, connReq)
+	if connErr != nil {
+		return connErr
+	}
+
+	return nil
 }
 
 func (pc *ProducerClient) PublishImage(client edgenode.PubSubClient) error {

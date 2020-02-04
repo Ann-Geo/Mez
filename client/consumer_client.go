@@ -10,16 +10,51 @@ import (
 
 	"vsc_workspace/Mez_upload/api/edgenode"
 	"vsc_workspace/Mez_upload/api/edgeserver"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type ConsumerClient struct {
-	Auth Authentication
+	Auth           Authentication
+	ConnConsClient *grpc.ClientConn
+	Cl             edgeserver.PubSubClient
+	Cancel         context.CancelFunc
+	Ctx            context.Context
 }
 
 var NumImRcvdUnsubTest uint64
 
 func NewConsumerClient(login, password string) *ConsumerClient {
 	return &ConsumerClient{Auth: Authentication{login: login, password: password}}
+}
+
+func (cc *ConsumerClient) Connect(url, userAddress string) error {
+	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	if err != nil {
+		return err
+	}
+
+	// Dial to Mez
+	cc.ConnConsClient, err = grpc.Dial(url, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cc.Auth))
+	if err != nil {
+		return err
+	}
+
+	cc.Cl = edgeserver.NewPubSubClient(cc.ConnConsClient)
+
+	cc.Ctx, cc.Cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+	//Connect with Mez
+	connReq := &edgeserver.Url{
+		Address: userAddress,
+	}
+	_, connErr := cc.Cl.Connect(cc.Ctx, connReq)
+	if connErr != nil {
+		return connErr
+	}
+
+	return nil
 }
 
 func (cc *ConsumerClient) SubscribeImage(client edgeserver.PubSubClient, tbegin time.Time) error {

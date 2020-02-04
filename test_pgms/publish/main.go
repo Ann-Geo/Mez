@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,9 +10,6 @@ import (
 	"time"
 	"vsc_workspace/Mez_upload/api/edgenode"
 	"vsc_workspace/Mez_upload/client"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -22,36 +18,20 @@ var frameRate uint64 = 200
 
 func main() {
 
+	//create a producer client with login and password
 	producer := client.NewProducerClient("client", "edge")
 
-	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	//Connect API, specify EN broker url and user address
+	err := producer.Connect("127.0.0.1:10000", "127.0.0.1:9050")
 	if err != nil {
-		log.Fatalf("tls error")
-	}
-
-	// Dial to Mez
-	connProdClient, err := grpc.Dial("127.0.0.1:10000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&producer.Auth))
-	if err != nil {
-		log.Fatalf("could not connect with EN broker")
-	}
-	defer connProdClient.Close()
-	cl := edgenode.NewPubSubClient(connProdClient)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-
-	//Connect with Mez
-	connReq := &edgenode.Url{
-		Address: "127.0.0.1:9050",
-	}
-	_, connErr := cl.Connect(ctx, connReq)
-	if connErr != nil {
-		fmt.Println(connErr)
 		log.Fatalf("error while calling Connect")
 	}
 
+	defer producer.ConnProdClient.Close()
+	defer producer.Cancel()
+
 	// Open a stream to gRPC server
-	stream, err := cl.Publish(ctx)
+	stream, err := producer.Cl.Publish(producer.Ctx)
 	if err != nil {
 
 		log.Fatalf("error while calling publish")
@@ -66,6 +46,7 @@ func main() {
 
 	}
 
+	//start publishing files
 	for _, file := range files {
 		fmt.Println("yes")
 

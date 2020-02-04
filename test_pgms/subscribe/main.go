@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
 	"time"
 	"vsc_workspace/Mez_upload/api/edgeserver"
 	"vsc_workspace/Mez_upload/client"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -19,38 +15,21 @@ func main() {
 
 	tStart := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStart)
-
 	time.Sleep(30 * time.Second)
 
+	//create a consumer client with login and password
 	consumer := client.NewConsumerClient("client", "edge") //user name password
 
-	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	//Connect API, specify EN broker url and user address
+	err := consumer.Connect("127.0.0.1:20000", "127.0.0.1:9051")
 	if err != nil {
-		log.Fatalln("tls error")
-	}
-
-	// Dial to Mez
-	connConsClient, err := grpc.Dial("127.0.0.1:20000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&consumer.Auth))
-	if err != nil {
-		log.Fatalln("could not connect with ESB")
-	}
-	defer connConsClient.Close()
-	cl := edgeserver.NewPubSubClient(connConsClient)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
-	defer cancel()
-
-	//Connect with Mez
-	connReq := &edgeserver.Url{
-		Address: "127.0.0.1:9050",
-	}
-	_, connErr := cl.Connect(context.Background(), connReq)
-	if connErr != nil {
 		log.Fatalf("error while calling Connect")
 	}
 
-	/**************************sub parameters***************************************/
+	defer consumer.ConnConsClient.Close()
+	defer consumer.Cancel()
 
+	/**************************sub parameters***************************************/
 	tStop := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStop)
 	latency := "1"
@@ -61,14 +40,14 @@ func main() {
 	imPars := &edgeserver.ImageStreamParameters{Camid: camid, Latency: latency, Accuracy: accuracy,
 		Start: tStart, Stop: tStop}
 
-	stream, err := cl.Subscribe(ctx, imPars)
+	//subscibe API call
+	stream, err := consumer.Cl.Subscribe(consumer.Ctx, imPars)
 
 	if err != nil {
 		log.Fatalln("error while subscribing")
 	}
 
-	//appInfo := &edgeserver.AppInfo{Camid: camid, Appid: "1"}
-
+	//start receiving files
 	for {
 		im, err := stream.Recv()
 		if err == io.EOF {
