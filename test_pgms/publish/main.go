@@ -13,7 +13,7 @@ import (
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
-var imageFilesPath string = "/home/research/pythonwork/SEM_5/openpose_obj_Det/complex/"
+var imageFilesPath string = "/home/research/pythonwork/SEM_5/openpose_obj_Det/simple/"
 var frameRate uint64 = 200
 
 func main() {

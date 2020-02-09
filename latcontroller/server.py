@@ -170,15 +170,19 @@ def findSizeDelta(currentLat, targetLat):
 
 
 #find knobs from hashtable
-def findKnobs(imSize):
-	ind = bisect.bisect_left(list(targetDataset.keys()), imSize)
-	if ind!=0:
-		ind=ind-1	
-	newImSize = targetDataset.items()[ind][0]
-	knobAndAcc = targetDataset.items()[ind][1]
-	knob = knobAndAcc[0]
-	acc = knobAndAcc[1]
-	knob = [x.strip() for x in knob.split(',')]
+def findKnobs(newImSize):
+	acc = 0.0
+
+	while acc < float(targetAcc):
+
+		ind = bisect.bisect_left(list(targetDataset.keys()), newImSize)
+		if ind!=0:
+			ind=ind-1	
+		newImSize = targetDataset.items()[ind][0]
+		knobAndAcc = targetDataset.items()[ind][1]
+		knob = knobAndAcc[0]
+		acc = knobAndAcc[1]
+		knob = [x.strip() for x in knob.split(',')]
 
 	return newImSize, knob, acc
 	
