@@ -145,7 +145,11 @@ def chooseDataset(accStr):
 	
 #find image size need to be decreased or increased
 def findSizeDelta(currentLat, targetLat):
+	global sumLatError
+
 	latDiff = abs(currentLat-targetLat)
+
+	'''
 	if currentLat == 0:
 		sizeDelta = 0
 	elif latDiff < 10:
@@ -165,6 +169,36 @@ def findSizeDelta(currentLat, targetLat):
 	
 	return sizeDelta
 
+	'''
+
+	sumLatError += latDiff
+	if currentLat == 0:
+		sizeDelta = 0
+	elif latDiff < 10:
+		Kp = 3568.9
+		Ki = 2446.32
+	elif latDiff >= 10 and latDiff < 20:
+		Kp = 4523.67
+		Ki = 4094.9
+	elif latDiff >= 20 and latDiff < 40:
+		Kp = 4860.33
+		Ki = 2979.11
+	elif latDiff >= 40 and latDiff < 80:
+		Kp = 3661.5
+		Ki = 7189.39
+	elif latDiff >= 80 and latDiff < 100:
+		Kp = 3546.87
+		Ki = 7375.38
+	elif latDiff >= 100 and latDiff < 200:
+		Kp = 2470.48
+		Ki = 6127.73
+	else:
+		Kp = 2149.77
+		Ki = 2807.32
+
+	sizeDelta = Kp*latDiff + Ki*sumLatError
+	
+	return sizeDelta
 
 
 
@@ -186,6 +220,19 @@ def findKnobs(newImSize):
 
 	return newImSize, knob, acc
 	
+
+
+#find initial size using the regression model when target latency is given
+def findInitialSize(lat):
+
+	#coefficients from regression model
+	m = 0.02982
+	c = 2.13746
+	imSize = (lat - c)/m
+	print(imSize)
+
+	return imSize
+
 
 
 ###################################image modification functions#######################
@@ -485,6 +532,7 @@ jaadComplexHT = {}
 dukeSimpleHT = {}
 dukeMediumHT = {}
 dukeComplexHT = {}
+sumLatError = 0
 firstFrame = ""
 firstFramegray = np.zeros(5)
 
@@ -513,7 +561,8 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		currentLat = 0
 		currLatAvg = 0
 		imCount = 0
-		prevImSize = initialSize
+		#prevImSize = initialSize
+		prevImSize = findInitialSize(targetLat)
 		knob = ["'R2'", "'C1'", "'K1'", "'D1'", "'F1'"]
 		acheivedAcc = "0.4" #max accuracy
 		for im in request_iterator:			

@@ -33,7 +33,7 @@ func main() {
 	tStop := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStop)
 	latency := "1"
-	accuracy := "0.47 jaad simple"
+	accuracy := "0.35 jaad complex"
 	camid := "cam1"
 	/******************************************************************************/
 
