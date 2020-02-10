@@ -104,6 +104,7 @@ def chooseDataset(accStr):
 	global targetDataset
 	global firstFrame
 	global firstFramegray
+	global FknobSettings
 
 	targetAcc = accStr.split()[0]
 	targetDataset = accStr.split()[1]
@@ -112,26 +113,32 @@ def chooseDataset(accStr):
 		if targetRegime == "simple":
 			targetDataset = jaadSimpleHT
 			firstFrame = cv2.imread("jaad/firstframes/00110.png")
+			FknobSettings = [0, 1600000, 1740000, 1830000, 1915000]
 
 		elif targetRegime == "medium":
 			targetDataset = jaadMediumHT
 			firstFrame = cv2.imread("jaad/firstframes/00050.png")
+			FknobSettings = [0, 2590000, 2700000 ,2790000, 2870000]
 		else:
 			targetDataset = jaadComplexHT
 			firstFrame = cv2.imread("jaad/firstframes/00230.png")
+			FknobSettings = [0, 3350000, 3510000, 3570000, 3645000]
 
 	elif targetDataset == "duke":
 		if targetRegime == "simple":
 			targetDataset = dukeSimpleHT
 			firstFrame = cv2.imread("duke/firstframes/093232.png")
+			FknobSettings = [0, 3221000, 3340000, 3410000, 3490000]
 
 		elif targetRegime == "medium":
 			targetDataset = dukeMediumHT
 			firstFrame = cv2.imread("duke/firstframes/086667.png")
+			FknobSettings = [0, 1240000, 1270000, 1310000, 1340000]
 
 		else:
 			targetDataset = dukeComplexHT
 			firstFrame = cv2.imread("duke/firstframes/071878.png")
+			FknobSettings = [0, 1370000, 1430000, 1473000, 1510000]
 
 
 	firstFrame = imutils.resize(firstFrame, width=500)
@@ -239,7 +246,25 @@ def findInitialSize(lat):
 
 #apply knobs
 def modifyImage(knobs, org_array):
+	global prev_frame
 
+	
+
+	image_array = Image.open(io.BytesIO(org_array))
+
+	image_array = np.array(image_array, dtype=np.uint8)
+	image_array = apply_frame_differencing(knobs[4], image_array)
+
+	if len(image_array) == 0:
+			return ""
+	#print(len(image_array))
+
+	prev_frame = image_array
+
+	success, encoded_image = cv2.imencode('.png', image_array)
+	image_array = encoded_image.tobytes()
+
+	
 
 	#all modifications - performing one by one
 	image_array = change_resolution(knobs[0], org_array)
@@ -255,9 +280,52 @@ def modifyImage(knobs, org_array):
 
 
 
+#apply frame diferencing knob
+def apply_frame_differencing(f, image_array):
+
+	global prev_frame
+	f = f.replace("'", "")
+
+	print(f)
+
+	if (f=='F1'):
+		print("f hereeeee")
+		dif = FknobSettings[0]
+	if (f=='F2'):
+		dif = FknobSettings[1]
+	if (f=='F3'):
+		dif = FknobSettings[2]
+	if (f=='F4'):
+		dif = FknobSettings[3]
+	if (f=='F5'):
+		dif = FknobSettings[4]
+	
+	p_frame_thresh = dif 
+
+	print(type(prev_frame), len(prev_frame))
+	print(type(image_array), len(image_array))
+
+
+	curr_frame = image_array
+        diff = cv2.absdiff(curr_frame, prev_frame)
+	#print(diff)
+	#print("here")
+        non_zero_count = np.count_nonzero(diff)
+	#print(non_zero_count)
+        if non_zero_count > p_frame_thresh:
+            	return curr_frame
+	else:
+		return np.zeros(0)
+
+
+
+
+
+
 # change the resolution
 def change_resolution(res, image_array):
     res = res.replace("'", "")
+
 
     if (res == 'R1'):
         res_image = Image.open(io.BytesIO(image_array))
@@ -535,6 +603,8 @@ dukeComplexHT = {}
 sumLatError = 0
 firstFrame = ""
 firstFramegray = np.zeros(5)
+FknobSettings = []
+prev_frame = []
 
 
 
@@ -558,6 +628,13 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 
 
 	def Control(self, request_iterator, context):
+		global prev_frame
+		success, encoded_image = cv2.imencode('.png', firstFrame)
+		image_bytes = encoded_image.tobytes()
+		res_image = Image.open(io.BytesIO(image_bytes))
+        	res_image = res_image.resize((1920, 1080))
+		res_image = np.array(res_image, dtype=np.uint8)
+		prev_frame = res_image
 		currentLat = 0
 		currLatAvg = 0
 		imCount = 0
@@ -591,6 +668,8 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 				currentLat = 0
 	
 			modImBytes = modifyImage(knob, im.image)
+			if len(modImBytes) == 0:
+				continue
 			
 			response = controller_api_pb2.CustomImage()
 			response.image = modImBytes
