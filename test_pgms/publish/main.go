@@ -13,7 +13,7 @@ import (
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
-var imageFilesPath string = "/home/research/pythonwork/SEM_5/openpose_obj_Det/simple/"
+var imageFilesPath string = "/home/research/pythonwork/SEM_5/Knobs-redo/optimize_controller/duke/simple/"
 var frameRate uint64 = 200
 
 func main() {
@@ -48,9 +48,10 @@ func main() {
 
 	//start publishing files
 	for _, file := range files {
-		fmt.Println("yes")
+		fmt.Println(file)
 
 		imBuf, err := ioutil.ReadFile(file)
+		fmt.Printf("%T\n", imBuf)
 		if err != nil {
 			log.Fatalf("cannot read file")
 

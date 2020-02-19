@@ -33,12 +33,14 @@ func main() {
 	tStop := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStop)
 	latency := "1"
-	accuracy := "0.47 jaad simple"
+	accuracy := "0.70 duke simple"
 	camid := "cam1"
 	/******************************************************************************/
 
 	imPars := &edgeserver.ImageStreamParameters{Camid: camid, Latency: latency, Accuracy: accuracy,
 		Start: tStart, Stop: tStop}
+
+	fmt.Println("for meas", time.Now())
 
 	//subscibe API call
 	stream, err := consumer.Cl.Subscribe(consumer.Ctx, imPars)
@@ -60,5 +62,7 @@ func main() {
 		log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
 
 	}
+
+	fmt.Println("done", time.Now())
 
 }

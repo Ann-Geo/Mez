@@ -233,6 +233,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		go func() {
 			for {
 				res, err := conStream.Recv()
+				fmt.Println("received from cont", time.Now())
 				if err == io.EOF {
 					break
 				}
@@ -240,6 +241,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					log.Fatalf("Error while receiving: %v\n", err)
 					break
 				}
+
 				fmt.Println("Received from controller")
 
 				//save the images to the log
@@ -268,6 +270,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				{
 					fmt.Println("Sending original image to controller")
 					time.Sleep(200 * time.Millisecond)
+					//fmt.Println("send to cont", time.Now())
 					curLatLock.Lock()
 					req := &controller.OriginalImage{
 						Image:      image.Im,
@@ -275,6 +278,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					}
 					fmt.Println(currentLat)
 					curLatLock.Unlock()
+
+					fmt.Println("send to controller", time.Now())
 					conStream.Send(req)
 					ok = true
 				}

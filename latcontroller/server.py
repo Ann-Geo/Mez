@@ -15,6 +15,8 @@ from pandas import DataFrame
 from collections import defaultdict
 from collections import OrderedDict
 from concurrent import futures
+from imageio import imread
+import datetime
 import pandas as pd
 import io
 import numpy as np
@@ -39,8 +41,6 @@ import subprocess
 #creates hashtables with image size as key and knob and accuracy as values
 def createHashtable(csvFile, upperAccLimit, lowerAccLimit):
 	df = pd.read_csv(csvFile)
-	df = df[df['F1 Score'] <= upperAccLimit]
-	df = df[df['F1 Score'] >= lowerAccLimit]
 	combos = []
 	for i in range(0, df.shape[0]):
 		combos.append(int(df.iloc[i][0]))
@@ -77,19 +77,19 @@ def loadData():
 	global dukeComplexHT
 
 
-	jaadSimpleHT = createHashtable("jaad/simple.csv", 0.476886, 0.47)
+	jaadSimpleHT = createHashtable("jaad/simple.csv", 0.476886, 0.45)
 	jaadSimpleHT = OrderedDict((key, jaadSimpleHT[key]) for key in sorted(jaadSimpleHT))
-	jaadMediumHT = createHashtable("jaad/medium.csv", 0.457737, 0.4)
+	jaadMediumHT = createHashtable("jaad/medium.csv", 0.457737, 0.43)
 	jaadMediumHT = OrderedDict((key, jaadMediumHT[key]) for key in sorted(jaadMediumHT))
-	jaadComplexHT = createHashtable("jaad/complex.csv", 0.41989, 0.35)
+	jaadComplexHT = createHashtable("jaad/complex.csv", 0.41989, 0.40)
 	jaadComplexHT = OrderedDict((key, jaadComplexHT[key]) for key in sorted(jaadComplexHT))
 
 
-	dukeSimpleHT = createHashtable("duke/simple.csv", 0.73315, 0.72)
+	dukeSimpleHT = createHashtable("duke/simple.csv", 0.73315, 0.70)
 	dukeSimpleHT = OrderedDict((key, dukeSimpleHT[key]) for key in sorted(dukeSimpleHT))
-	dukeMediumHT = createHashtable("duke/medium.csv", 0.35266, 0.34)
+	dukeMediumHT = createHashtable("duke/medium.csv", 0.35266, 0.33)
 	dukeMediumHT = OrderedDict((key, dukeMediumHT[key]) for key in sorted(dukeMediumHT))
-	dukeComplexHT = createHashtable("duke/complex.csv", 0.47139, 0.43)
+	dukeComplexHT = createHashtable("duke/complex.csv", 0.47139, 0.45)
 	dukeComplexHT = OrderedDict((key, dukeComplexHT[key]) for key in sorted(dukeComplexHT))
 
 
@@ -113,32 +113,32 @@ def chooseDataset(accStr):
 		if targetRegime == "simple":
 			targetDataset = jaadSimpleHT
 			firstFrame = cv2.imread("jaad/firstframes/00110.png")
-			FknobSettings = [0, 1600000, 1740000, 1830000, 1915000]
+			FknobSettings = [0, 250000, 283000, 308000, 332000]
 
 		elif targetRegime == "medium":
 			targetDataset = jaadMediumHT
 			firstFrame = cv2.imread("jaad/firstframes/00050.png")
-			FknobSettings = [0, 2590000, 2700000 ,2790000, 2870000]
+			FknobSettings = [0, 377500, 401500 ,430000, 445000]
 		else:
 			targetDataset = jaadComplexHT
 			firstFrame = cv2.imread("jaad/firstframes/00230.png")
-			FknobSettings = [0, 3350000, 3510000, 3570000, 3645000]
+			FknobSettings = [0, 507000, 540000, 551500, 580000]
 
 	elif targetDataset == "duke":
 		if targetRegime == "simple":
 			targetDataset = dukeSimpleHT
 			firstFrame = cv2.imread("duke/firstframes/093232.png")
-			FknobSettings = [0, 3221000, 3340000, 3410000, 3490000]
+			FknobSettings = [0, 520000, 537000, 546000, 557800]
 
 		elif targetRegime == "medium":
 			targetDataset = dukeMediumHT
 			firstFrame = cv2.imread("duke/firstframes/086667.png")
-			FknobSettings = [0, 1240000, 1270000, 1310000, 1340000]
+			FknobSettings = [0, 225000, 229300, 236800, 241500]
 
 		else:
 			targetDataset = dukeComplexHT
 			firstFrame = cv2.imread("duke/firstframes/071878.png")
-			FknobSettings = [0, 1370000, 1430000, 1473000, 1510000]
+			FknobSettings = [0, 245000, 256000, 261300, 267500]
 
 
 	firstFrame = imutils.resize(firstFrame, width=500)
@@ -236,7 +236,7 @@ def findInitialSize(lat):
 	m = 0.02982
 	c = 2.13746
 	imSize = (lat - c)/m
-	print(imSize)
+	#print(imSize)
 
 	return imSize
 
@@ -248,72 +248,108 @@ def findInitialSize(lat):
 def modifyImage(knobs, org_array):
 	global prev_frame
 
-	
+	#print(len(org_array))
+	#print("type org_array", type(org_array))#<type 'str'>
 
+	
+	#print(knobs)
 	image_array = Image.open(io.BytesIO(org_array))
 
-	image_array = np.array(image_array, dtype=np.uint8)
-	image_array = apply_frame_differencing(knobs[4], image_array)
+	#image_array = imread(io.BytesIO(org_array))
 
-	if len(image_array) == 0:
-			return ""
+
+	#print(type(image_array))
 	#print(len(image_array))
+	#print(image_array.shape)
+	#print(image_array.size)
+	
+	#print(image_array)
+	#<PIL.PngImagePlugin.PngImageFile image mode=RGB size=1312x738 at 0x7FEE235857D0>
+	#('type image_array', <class 'PIL.PngImagePlugin.PngImageFile'>)
+	#print("type image_array", type(image_array))
 
-	prev_frame = image_array
+	e1 = cv2.getTickCount()
+	#image_array = image_array.tobytes()#len(image_array.mode)
 
+	#image_array = np.fromstring(org_array.tobytes(), dtype='uint8', count=-1, sep='').reshape((738, 1312) + (3,))
+
+	image_array = np.array(image_array, dtype=np.uint8)
+	#print(image_array.shape)
+	#print("type image array", type(image_array))
+	#image_array = cv2.imdecode(bytearray(org_array), cv2.IMREAD_COLOR)
+
+	e2 = cv2.getTickCount()
+    	t = (e2 - e1)/cv2.getTickFrequency()
+    	print("to_numpy_conv", t)
+
+	#print("image_array", type(image_array))
+
+	if knobs[4] != "'F1'":
+
+		image_array = apply_frame_differencing(knobs[4], image_array)
+
+
+		if len(image_array) == 0:
+			return ""
+
+		prev_frame = image_array
+
+
+
+	if knobs[0] != "'R2'":
+		image_array = change_resolution(knobs[0], image_array)
+
+	if knobs[1] != "'C1'":
+		image_array = change_colorspace(knobs[1], image_array)
+
+	if knobs[2] != "'K1'":
+		image_array = change_smoothing_filter_size(knobs[2], image_array)
+
+	if knobs[3] != "'D1'":
+		image_array = apply_detection_technique(knobs[3], knobs[1], image_array)
+
+
+	e1 = cv2.getTickCount()
+	
+	# convert returned numpy array to bytes
 	success, encoded_image = cv2.imencode('.png', image_array)
 	image_array = encoded_image.tobytes()
 
-	
 
-	#all modifications - performing one by one
-	image_array = change_resolution(knobs[0], org_array)
-	image_array = change_colorspace(knobs[1], image_array)
-	image_array = change_smoothing_filter_size(knobs[2], image_array)
-	image_array = apply_detection_technique(knobs[3], knobs[1], image_array)
+	e2 = cv2.getTickCount()
+    	t = (e2 - e1)/cv2.getTickFrequency()
+    	print("to_byte_conv", t)
 
 
-	# convert returned numpy array to bytes
-	success, encoded_image = cv2.imencode('.png', image_array)
-	image_bytes = encoded_image.tobytes()
-	return image_bytes
+	return image_array
 
 
 
 #apply frame diferencing knob
 def apply_frame_differencing(f, image_array):
 
-	global prev_frame
 	f = f.replace("'", "")
 
-	print(f)
 
-	if (f=='F1'):
-		print("f hereeeee")
-		dif = FknobSettings[0]
 	if (f=='F2'):
 		dif = FknobSettings[1]
-	if (f=='F3'):
+	elif (f=='F3'):
 		dif = FknobSettings[2]
-	if (f=='F4'):
+	elif (f=='F4'):
 		dif = FknobSettings[3]
-	if (f=='F5'):
+	else:
 		dif = FknobSettings[4]
 	
-	p_frame_thresh = dif 
-
-	print(type(prev_frame), len(prev_frame))
-	print(type(image_array), len(image_array))
+	curr = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
+	prev = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
 
 
-	curr_frame = image_array
-        diff = cv2.absdiff(curr_frame, prev_frame)
-	#print(diff)
-	#print("here")
-        non_zero_count = np.count_nonzero(diff)
+        non_zero_count = cv2.countNonZero(cv2.absdiff(curr, prev))
+
 	#print(non_zero_count)
-        if non_zero_count > p_frame_thresh:
-            	return curr_frame
+
+        if non_zero_count > dif:
+            	return image_array
 	else:
 		return np.zeros(0)
 
@@ -324,14 +360,8 @@ def apply_frame_differencing(f, image_array):
 
 # change the resolution
 def change_resolution(res, image_array):
-    res = res.replace("'", "")
+    	res = res.replace("'", "")
 
-
-    if (res == 'R1'):
-        res_image = Image.open(io.BytesIO(image_array))
-        return res_image.resize((1920, 1080))
-
-    else:
         if (res == 'R2'):
             width = 1312
             height = 738
@@ -346,21 +376,14 @@ def change_resolution(res, image_array):
             width = 480
             height = 270
 
-        res_image = Image.open(io.BytesIO(image_array))
-	res_image.thumbnail((1312, 738))
-        return res_image.resize((width, height))
+        res_image = cv2.resize(image_array, (width, height)) 
+        return res_image
 
 
 # find the colorspace
 def change_colorspace(col, image_array):
-    col = col.replace("'", "")
+    	col = col.replace("'", "")
 
-
-    if (col == 'C1'):
-        im_array = np.array(image_array, dtype=np.uint8)
-        return im_array
-
-    else:
 
         if (col == 'C2'):
             col = cv2.COLOR_BGR2GRAY
@@ -371,22 +394,14 @@ def change_colorspace(col, image_array):
         else:
             col = cv2.COLOR_BGR2LUV
 	
-
-	im_array = np.array(image_array)
-        col_image = cv2.cvtColor(im_array, col)
+        col_image = cv2.cvtColor(image_array, col)
         return col_image
 
 
 
 # find the kernel size
 def change_smoothing_filter_size(ker, image_array):
-    ker = ker.replace("'", "")
-
-
-    if (ker == 'K1'):
-        return image_array
-
-    else:
+    	ker = ker.replace("'", "")
 
         if (ker == 'K2'):
             kern = 5
@@ -415,14 +430,10 @@ def is_contour_bad(c):
 
 # find detection technique
 def apply_detection_technique(det, col, image_array):
-    det = det.replace("'", "")
-    col = col.replace("'", "")
+    	det = det.replace("'", "")
+    	col = col.replace("'", "")
 
 
-    if (det == 'D1'):
-        return image_array
-
-    else:
 
         if (det == 'D2'):    
             # grab the current frame
@@ -463,7 +474,7 @@ def apply_detection_technique(det, col, image_array):
 
 
 
-        if (det == 'D3'):
+        elif (det == 'D3'):
             # define the list of boundaries
             boundaries = [
                 ([0, 250, 0], [0, 255, 0])
@@ -552,7 +563,7 @@ def apply_detection_technique(det, col, image_array):
 
 	    ###################################  D3 ends #########################################
 
-        if (det == 'D4'):
+        else:
 
             # load the shapes image, convert it to grayscale, and edge edges in
             # the image
@@ -612,6 +623,9 @@ prev_frame = []
 
 class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerServicer):
 	def SetTarget(self, request, context):
+
+		e1 = cv2.getTickCount()
+
 		global targetLat 
 		global targetDataset
 		global targetAcc  
@@ -620,6 +634,10 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		targetAcc, targetDataset = chooseDataset(request.target_acc)
 
 		status = controller_api_pb2.Status(status=True)
+
+		e2 = cv2.getTickCount()
+    		t = (e2 - e1)/cv2.getTickFrequency()
+    		print("set target overhead", t)
 		return status
 		
 		
@@ -629,12 +647,18 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 
 	def Control(self, request_iterator, context):
 		global prev_frame
-		success, encoded_image = cv2.imencode('.png', firstFrame)
-		image_bytes = encoded_image.tobytes()
-		res_image = Image.open(io.BytesIO(image_bytes))
-        	res_image = res_image.resize((1920, 1080))
-		res_image = np.array(res_image, dtype=np.uint8)
-		prev_frame = res_image
+
+		e1 = cv2.getTickCount()
+
+		img = Image.open("duke/firstframes/093232.png", mode='r')
+		imgByteArr = io.BytesIO()
+		img.save(imgByteArr, format='PNG')
+		imgByteArr = imgByteArr.getvalue()
+		imgByteArr = Image.open(io.BytesIO(imgByteArr))
+		im_np_array = np.array(imgByteArr, dtype=np.uint8)
+
+		prev_frame = im_np_array
+
 		currentLat = 0
 		currLatAvg = 0
 		imCount = 0
@@ -642,7 +666,16 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 		prevImSize = findInitialSize(targetLat)
 		knob = ["'R2'", "'C1'", "'K1'", "'D1'", "'F1'"]
 		acheivedAcc = "0.4" #max accuracy
-		for im in request_iterator:			
+
+		e2 = cv2.getTickCount()
+    		t = (e2 - e1)/cv2.getTickFrequency()
+    		print("control rpc overhead", t)
+
+		for im in request_iterator:
+
+			print("received from EN broker", datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])
+			e1 = cv2.getTickCount()
+			
 			imCount = imCount+1
 			imRecTimeAndCurrLat = im.current_lat.split('and')
 			currentLat += float(imRecTimeAndCurrLat[1])
@@ -675,6 +708,10 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 			response.image = modImBytes
 			response.acheived_acc = imRecTimeAndCurrLat[0]+"and"+acheivedAcc
 
+			e2 = cv2.getTickCount()
+    			t = (e2 - e1)/cv2.getTickFrequency()
+    			print("total_delay", t)
+
 
             		yield response
 			
@@ -690,7 +727,7 @@ class LatencyControllerServicer(controller_api_pb2_grpc.LatencyControllerService
 
 #starts grpc server
 def serve():
-	server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+	server = grpc.server(futures.ThreadPoolExecutor(max_workers=5))
 	controller_api_pb2_grpc.add_LatencyControllerServicer_to_server(LatencyControllerServicer(), server)
 	server.add_insecure_port('[::]:9002')
     	server.start()
