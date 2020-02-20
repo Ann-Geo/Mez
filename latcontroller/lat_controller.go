@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"image"
 	"io"
 	"log"
 	"math"
@@ -51,17 +52,39 @@ type dataSet struct {
 	lpTable        *lookupTable
 	firstFrameName string
 	firstFrameMat  gocv.Mat
-	frameDiffKS    []int32
+	frameDiffKS    []int
 	firstFrameRead gocv.Mat
 }
 
+func NewController(ipaddr string) *Controller {
+	fKnobVals := []int{0, 250000, 283000, 308000, 332000,
+		0, 377500, 401500, 430000, 445000,
+		0, 507000, 540000, 551500, 580000,
+		0, 520000, 537000, 546000, 557800,
+		0, 225000, 229300, 236800, 241500,
+		0, 245000, 256000, 261300, 267500}
+	dukeSim := newDataSet("/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/simple.csv",
+		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/simple_knobs.txt",
+		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
+	dukeMed := newDataSet("/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/medium.csv",
+		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/medium_knobs.txt",
+		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/firstframes/086667.png", fKnobVals[20:25])
+
+	return &Controller{
+		dukeSim: dukeSim,
+		dukeMed: dukeMed,
+		ipaddr:  ipaddr,
+	}
+}
+
 //creates dataset dtructure by calling loadknobs and readCsv
-func newDataSet(csvFile, knobFile, firstFrameName string, fknobs []int32) *dataSet {
+func newDataSet(csvFile, knobFile, firstFrameName string, fknobs []int) *dataSet {
 	var knobs []string
 	knobs = loadKnobs(knobFile)
 
-	var lpTable *lookupTable
-	lpTable = readCsv(csvFile, knobs)
+	lpTable := readCsv(csvFile, knobs)
+
+	fmt.Println(lpTable)
 
 	//convert first frame to Mat
 	img := gocv.IMRead(firstFrameName, gocv.IMReadColor)
@@ -70,6 +93,8 @@ func newDataSet(csvFile, knobFile, firstFrameName string, fknobs []int32) *dataS
 	if err != nil {
 		log.Fatalf("bytes to Mat conversion failed")
 	}
+
+	fmt.Println("F knob values", fknobs)
 
 	return &dataSet{
 		csvFile:        csvFile,
@@ -127,7 +152,10 @@ func loadKnobs(knobFile string) []string {
 //reads csv file and populates the lookup table structure (slices)
 func readCsv(csvFile string, knobs []string) *lookupTable {
 
-	var lpTable *lookupTable
+	lpTable := &lookupTable{
+		imSize: make([]float64, 0),
+		kc:     make([]knobComb, 0),
+	}
 
 	//Opencsv file
 	csvfile, err := os.Open(csvFile)
@@ -177,13 +205,6 @@ func readCsv(csvFile string, knobs []string) *lookupTable {
 
 func (s *Controller) StartLatencyController() {
 	s.frameRate = 5
-	fKnobVals := []int32{0, 250000, 283000, 308000, 332000,
-		0, 377500, 401500, 430000, 445000,
-		0, 507000, 540000, 551500, 580000,
-		0, 520000, 537000, 546000, 557800,
-		0, 225000, 229300, 236800, 241500,
-		0, 245000, 256000, 261300, 267500}
-	s.dukeSim = newDataSet("duke/simple.csv", "duke/simple_knobs.txt", "duke/firstframes/093232.png", fKnobVals[15:20])
 
 	log.Println("Starting controller")
 	lis, err := net.Listen("tcp", s.ipaddr) //port:9002
@@ -239,6 +260,8 @@ func (s *Controller) findInitialSize(lat float64) float64 {
 
 func (s *Controller) SetTarget(ctx context.Context, targets *controller.Targets) (*controller.Status, error) {
 
+	fmt.Println("SetTarget invoked")
+
 	targetLat, err := strconv.ParseFloat(targets.GetTargetLat(), 64)
 	if err != nil {
 		log.Fatalln("target latency string parse error", err)
@@ -253,6 +276,7 @@ func (s *Controller) SetTarget(ctx context.Context, targets *controller.Targets)
 }
 
 func (s *Controller) findSizeDelta(currLatAvg, targetLat float64) float64 {
+	//fmt.Println("findSizeDelta invoked", currLatAvg)
 	latDiff := math.Abs(currLatAvg - targetLat)
 	var sizeDelta float64
 	var Kp float64
@@ -293,8 +317,10 @@ func (s *Controller) findSizeDelta(currLatAvg, targetLat float64) float64 {
 
 func (s *Controller) findClosest(key float64) int {
 
+	//fmt.Println("findClosest invoked", key)
+
 	var low int
-	var high = len(s.targetDataset.lpTable.imSize)
+	var high = len(s.targetDataset.lpTable.imSize) - 1
 	var diff = 3000000.0
 	ind := 0
 
@@ -311,21 +337,29 @@ func (s *Controller) findClosest(key float64) int {
 		}
 
 	}
+
+	//fmt.Println("index found", ind)
 	return ind
 
 }
 
 //find knobs from lpTable
 func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
+	//fmt.Println("findKnobs invoked", newImSize)
 	var acc float64
 	var knob string
 	var ind int
+	//fmt.Println("initial acc", acc)
+	//fmt.Println("targetacc", s.targetAcc)
 
 	for acc < s.targetAcc {
 		ind = s.findClosest(newImSize)
 		newImSize = s.targetDataset.lpTable.imSize[ind]
+		//fmt.Println("newImage size", newImSize)
 		knob = s.targetDataset.lpTable.kc[ind].knobSetting
+		//fmt.Println("newKnob", knob)
 		acc = s.targetDataset.lpTable.kc[ind].accuracy
+		//fmt.Println("new accuracy", acc)
 
 	}
 
@@ -334,7 +368,11 @@ func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
 }
 
 /**************************image modification****************************/
-func (s *Controller) modifyImage(knob string, imbytes []uint8) {
+func (s *Controller) modifyImage(knob string, imbytes []uint8) []uint8 {
+	fmt.Println("modifyImage invoked", knob)
+	var emptyByte []uint8
+
+	t1 := gocv.GetTickCount()
 	mat_array, err := gocv.NewMatFromBytes(s.targetDataset.firstFrameRead.Rows(),
 		s.targetDataset.firstFrameRead.Cols(), s.targetDataset.firstFrameRead.Type(), imbytes)
 	if err != nil {
@@ -342,10 +380,11 @@ func (s *Controller) modifyImage(knob string, imbytes []uint8) {
 	}
 
 	if knob[25:27] != "F1" {
+		//fmt.Println("went F", knob[25:27])
 		mat_array = s.applyFrameDifferencing(knob[25:27], mat_array)
 
-		if len(mat_array) == 0 {
-			return ""
+		if mat_array.Empty() == true {
+			return emptyByte
 		}
 
 		s.prevFrame = mat_array
@@ -353,57 +392,126 @@ func (s *Controller) modifyImage(knob string, imbytes []uint8) {
 	}
 
 	if knob[1:3] != "R2" {
+		//fmt.Println("went R", knob[1:3])
 		mat_array = s.changeResolution(knob[1:3], mat_array)
 
 	}
 
 	if knob[7:9] != "C1" {
+		//fmt.Println("went C", knob[7:9])
 		mat_array = s.changeColorspace(knob[7:9], mat_array)
 
 	}
 
 	if knob[13:15] != "K1" {
+		//fmt.Println("went K", knob[13:15])
 		mat_array = s.changeSmoothingFilterSize(knob[13:15], mat_array)
 	}
 
 	//convert returned numpy array to bytes
+	imgBytes := mat_array.ToBytes()
 
+	t2 := gocv.GetTickCount()
+	t := (t2 - t1) / gocv.GetTickFrequency()
+	fmt.Println("total modification time", t)
 
-	return mat_array
+	return imgBytes
 
 }
 
-func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) {
-	var diff int32
-	if f=="F2" {
+func (s *Controller) changeSmoothingFilterSize(ker string, mat_array gocv.Mat) gocv.Mat {
+	var filterSize int
+	if ker == "K2" {
+		filterSize = 5
+	} else if ker == "K3" {
+		filterSize = 8
+	} else if ker == "K4" {
+		filterSize = 10
+	} else {
+		filterSize = 15
+	}
+
+	gocv.Blur(mat_array, &mat_array, image.Pt(filterSize, filterSize))
+
+	return mat_array
+}
+
+func (s *Controller) changeResolution(res string, mat_array gocv.Mat) gocv.Mat {
+	var width int
+	var height int
+	if res == "R3" {
+		width = 960
+		height = 540
+	} else if res == "R4" {
+		width = 640
+		height = 360
+	} else {
+		width = 480
+		height = 270
+	}
+	resultImage := gocv.NewMatWithSize(width, height, gocv.MatTypeCV8U)
+	gocv.Resize(mat_array, &resultImage, image.Pt(resultImage.Rows(), resultImage.Cols()), 0, 0, gocv.InterpolationCubic)
+
+	return resultImage
+
+}
+
+func (s *Controller) changeColorspace(col string, mat_array gocv.Mat) gocv.Mat {
+
+	var colKnob gocv.ColorConversionCode
+	if col == "C2" {
+		colKnob = gocv.ColorBGRToGray
+	} else if col == "C3" {
+		colKnob = gocv.ColorBGRToHSV
+	} else if col == "C4" {
+		colKnob = gocv.ColorBGRToLab
+	} else {
+		colKnob = gocv.ColorBGRToLuv
+	}
+	resultImage := gocv.NewMat()
+
+	gocv.CvtColor(mat_array, &resultImage, colKnob)
+
+	return resultImage
+
+}
+
+func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) gocv.Mat {
+	var dif int
+	if f == "F2" {
 		dif = s.targetDataset.frameDiffKS[1]
-	} else if f=="F3" {
+	} else if f == "F3" {
 		dif = s.targetDataset.frameDiffKS[2]
-	} else if f=="F4" {
+	} else if f == "F4" {
 		dif = s.targetDataset.frameDiffKS[3]
 	} else {
 		dif = s.targetDataset.frameDiffKS[4]
 	}
-	
 
-curr = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
-prev = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+	fmt.Println("dif==", dif)
+	grayImageCurr := gocv.NewMat()
+	grayImagePrev := gocv.NewMat()
+	gocv.CvtColor(mat_array, &grayImageCurr, gocv.ColorBGRToGray)
+	gocv.CvtColor(s.targetDataset.firstFrameMat, &grayImagePrev, gocv.ColorBGRToGray)
 
+	diffIm := gocv.NewMat()
+	gocv.AbsDiff(grayImageCurr, grayImagePrev, &diffIm)
+	nonZeroCount := gocv.CountNonZero(diffIm)
+	fmt.Println("Non zero count", nonZeroCount)
 
-	non_zero_count = cv2.countNonZero(cv2.absdiff(curr, prev))
-
-#print(non_zero_count)
-
-	if non_zero_count > dif:
-			return image_array
-else:
-	return np.zeros(0)
+	if nonZeroCount > dif {
+		return mat_array
+	} else {
+		return gocv.NewMat()
+	}
 
 }
 
 /*************************************************************************/
 
 func (s *Controller) Control(stream controller.LatencyController_ControlServer) error {
+
+	fmt.Println("Control invoked")
 	s.prevFrame = s.targetDataset.firstFrameMat
 
 	var currentLat float64
@@ -414,6 +522,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 	prevImSize := s.findInitialSize(s.targetLat)
 	knob := "'R2', 'C1', 'K1', 'D1', 'F1'"
 	acheivedAcc := "0.4" //max accuracy
+	var acc float64
 
 	for {
 
@@ -427,8 +536,10 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			return err
 		}
 
-		imRecTimeAndCurrLat, _ := strconv.ParseFloat(strings.Split(req.GetCurrentLat(), "and")[1], 64)
-		currentLat += imRecTimeAndCurrLat
+		//fmt.Println("received from EN broker")
+
+		curLat, _ := strconv.ParseFloat(strings.Split(req.GetCurrentLat(), "and")[1], 64)
+		currentLat += curLat
 
 		if imCount == s.frameRate {
 			currLatAvg = currentLat / float64(s.frameRate)
@@ -451,7 +562,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 
 			}
 
-			newImSize, knob, acc := s.findKnobs(newImSize)
+			newImSize, knob, acc = s.findKnobs(newImSize)
 			acheivedAcc = fmt.Sprintf("%f", acc)
 			prevImSize = newImSize
 
@@ -459,9 +570,22 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			currentLat = 0
 		}
 
-		modImBytes = s.modifyImage(knob, req.GetImage())
+		modImBytes := s.modifyImage(knob, req.GetImage())
 		if len(modImBytes) == 0 {
 			continue
+		}
+
+		fmt.Println("modified image length", len(modImBytes))
+
+		imRecdTime := strings.Split(req.GetCurrentLat(), "and")[0]
+
+		sendErr := stream.Send(&controller.CustomImage{
+			Image:       modImBytes,
+			AcheivedAcc: imRecdTime + "and" + acheivedAcc,
+		})
+		if sendErr != nil {
+			log.Fatalf("Error while sending data to EN broker: %v", sendErr)
+			return sendErr
 		}
 
 	}

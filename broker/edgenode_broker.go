@@ -242,13 +242,11 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					break
 				}
 
-				fmt.Println("Received from controller")
-
 				//save the images to the log
 				ts := time.Now()
 				img := res.GetImage()
-				tsRec, _ := time.Parse(customTimeformat, strings.Split(res.GetAcheivedAcc(), "and")[0])
-				enbC.store["modified"].Append(img, tsRec)
+				tsRecord, _ := time.Parse(customTimeformat, strings.Split(res.GetAcheivedAcc(), "and")[0])
+				enbC.store["modified"].Append(img, tsRecord)
 
 				//send it to the ES broker
 				modIm := &edgenode.Image{
@@ -268,7 +266,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			select {
 			case image := <-imts:
 				{
-					fmt.Println("Sending original image to controller")
+
 					time.Sleep(200 * time.Millisecond)
 					//fmt.Println("send to cont", time.Now())
 					curLatLock.Lock()

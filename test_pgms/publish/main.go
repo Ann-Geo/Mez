@@ -13,7 +13,7 @@ import (
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
-var imageFilesPath string = "/home/research/pythonwork/SEM_5/Knobs-redo/optimize_controller/duke/simple/"
+var imageFilesPath string = "/home/research/pythonwork/SEM_5/Knobs-redo/optimize_controller/duke/medium/"
 var frameRate uint64 = 200
 
 func main() {

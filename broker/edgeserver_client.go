@@ -122,6 +122,7 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 		//Sending image transfer latency to Edge node
 		tsRcvd := time.Now()
 		tsSendAndtsRecAndAccu := im.GetTimestamp()
+		fmt.Println("tsSendAndtsRecAndAccu", tsSendAndtsRecAndAccu)
 		tsSendAndtsRecAndAccuSlice := strings.Split(tsSendAndtsRecAndAccu, "and")
 		tsSend, _ := time.Parse(customTimeformat, tsSendAndtsRecAndAccuSlice[0])
 		imLatency := tsRcvd.Sub(tsSend)
