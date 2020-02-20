@@ -34,6 +34,7 @@ type EdgeNodeBroker struct {
 	stopSubcription bool
 	applicationPool map[string]string
 	actController   string
+	cLat            chan string
 }
 
 func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
@@ -45,6 +46,7 @@ func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
 		stopSubcription: false,
 		applicationPool: make(map[string]string),
 		actController:   actController,
+		cLat:            make(chan string),
 	}
 }
 
@@ -191,6 +193,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 
 	// Concurrent read of images from store got from producer
 	go s.store[s.serverName].Read(imts, tstart, tstop, errch)
+	imCount := 0
 
 	errc := <-errch
 	if errc != nil {
@@ -203,6 +206,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		fmt.Println("inside controller")
 		curLatLock.Lock()
 		currentLat = "1"
+		lat := "1"
 		curLatLock.Unlock()
 
 		//connect the ENB client with controller server
@@ -267,24 +271,31 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			case image := <-imts:
 				{
 
-					time.Sleep(200 * time.Millisecond)
+					//time.Sleep(200 * time.Millisecond)
 					//fmt.Println("send to cont", time.Now())
-					curLatLock.Lock()
+					if imCount != 0 {
+						lat = <-s.cLat
+					}
+					//curLatLock.Lock()
 					req := &controller.OriginalImage{
-						Image:      image.Im,
-						CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
+						Image: image.Im,
+						//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
+						CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
 					}
 					fmt.Println(currentLat)
-					curLatLock.Unlock()
+					//curLatLock.Unlock()
 
 					fmt.Println("send to controller", time.Now())
 					conStream.Send(req)
 					ok = true
+					imCount = imCount + 1
 				}
 			default:
 				ok = false
 			}
 		}
+
+		imCount = 0
 
 		conStream.CloseSend()
 		<-waitc
@@ -367,9 +378,11 @@ func (s *EdgeNodeBroker) Unsubscribe(ctx context.Context, caminfo *edgenode.Came
 func (s *EdgeNodeBroker) LatencyCalc(ctx context.Context, lat *edgenode.LatencyMeasured) (*edgenode.Status, error) {
 	fmt.Printf("LatencyCalc RPC was invoked with %v\n", lat)
 
-	curLatLock.Lock()
+	s.cLat <- lat.GetCurrentLat()
+
+	//curLatLock.Lock()
 	currentLat = lat.GetCurrentLat()
-	curLatLock.Unlock()
+	//curLatLock.Unlock()
 	fmt.Println(lat.GetCurrentLat())
 
 	status := &edgenode.Status{
