@@ -1,0 +1,7 @@
+current time: 2020-02-22 23:11:06.536934624 -0500 EST m=+12.567255921, image_size: 2904768, latency: 9.674624ms, accuracy: 0.4
+current time: 2020-02-22 23:11:06.54974599 -0500 EST m=+12.580067324, image_size: 2904768, latency: 3.68599ms, accuracy: 0.4
+current time: 2020-02-22 23:11:06.565028393 -0500 EST m=+12.595349706, image_size: 2904768, latency: 4.408393ms, accuracy: 0.4
+current time: 2020-02-22 23:11:06.579935209 -0500 EST m=+12.610256541, image_size: 2904768, latency: 4.735209ms, accuracy: 0.4
+current time: 2020-02-22 23:11:06.589904551 -0500 EST m=+12.620225854, image_size: 230400, latency: 624.551µs, accuracy: 0.338983
+current time: 2020-02-22 23:11:06.600481627 -0500 EST m=+12.630802946, image_size: 230400, latency: 1.071627ms, accuracy: 0.338983
+current time: 2020-02-22 23:11:06.608906493 -0500 EST m=+12.639227846, image_size: 230400, latency: 376.493µs, accuracy: 0.338983

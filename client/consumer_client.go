@@ -8,11 +8,10 @@ import (
 	"log"
 	"time"
 
-	"vsc_workspace/Mez_upload/api/edgenode"
-	"vsc_workspace/Mez_upload/api/edgeserver"
+	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"vsc_workspace/Mez_upload_woa/api/edgeserver"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 type ConsumerClient struct {
@@ -30,13 +29,10 @@ func NewConsumerClient(login, password string) *ConsumerClient {
 }
 
 func (cc *ConsumerClient) Connect(url, userAddress string) error {
-	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
-	if err != nil {
-		return err
-	}
 
+	var err error
 	// Dial to Mez
-	cc.ConnConsClient, err = grpc.Dial(url, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cc.Auth))
+	cc.ConnConsClient, err = grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}

@@ -11,13 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"vsc_workspace/Mez_upload/api/controller"
-	"vsc_workspace/Mez_upload/api/edgenode"
-	"vsc_workspace/Mez_upload/api/edgeserver"
-	"vsc_workspace/Mez_upload/storage"
+	"vsc_workspace/Mez_upload_woa/api/controller"
+	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"vsc_workspace/Mez_upload_woa/api/edgeserver"
+	"vsc_workspace/Mez_upload_woa/storage"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -58,12 +57,6 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		return fmt.Errorf("failed to listen: %v", err)
 	}
 
-	// Create the TLS credentials
-	creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
-	if err != nil {
-		return fmt.Errorf("could not load TLS keys: %s", err)
-	}
-
 	// Create default log storage
 	s.store[s.serverName] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
@@ -73,10 +66,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		return fmt.Errorf("EdgeNodeBroker %s\n", err)
 	}
 
-	// Create an array of gRPC options with the credentials
-	opts := []grpc.ServerOption{grpc.Creds(creds), grpc.UnaryInterceptor(s.UnaryInterceptor)}
-
-	grpcServer := grpc.NewServer(opts...)
+	grpcServer := grpc.NewServer()
 	// Attach client API to broker
 	edgenode.RegisterPubSubServer(grpcServer, s)
 	if err := grpcServer.Serve(lis); err != nil {
@@ -163,6 +153,8 @@ func newEnbWithCntlrClient(ipaddrCont string) *enbWithCntlrClient {
 // Subscribe supported by both Edge server and Edge node brokers. However their implementation is different
 // Edge node subscription interacts with the controller to produce a stream that satisfies the requested latency accuracy
 func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, stream edgenode.PubSub_SubscribeServer) error {
+
+	fmt.Println("subscribe invoked")
 	// GRPC - Server side streaming
 
 	if s.serverName != imPars.Camid {
@@ -237,10 +229,11 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		go func() {
 			for {
 				res, err := conStream.Recv()
-				fmt.Println("received from cont", time.Now())
+
 				if err == io.EOF {
 					break
 				}
+				fmt.Println("received from cont", time.Now())
 				if err != nil {
 					log.Fatalf("Error while receiving: %v\n", err)
 					break
@@ -270,7 +263,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			select {
 			case image := <-imts:
 				{
-
+					lastTs = image.Ts
 					//time.Sleep(200 * time.Millisecond)
 					//fmt.Println("send to cont", time.Now())
 					if imCount != 0 {
@@ -295,33 +288,9 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			}
 		}
 
-		imCount = 0
+		////////////adding extra code////////////////////////
 
-		conStream.CloseSend()
-		<-waitc
-		fmt.Println("sending done")
-
-	} else {
-
-		ok := true
-		for ok {
-			select {
-			case image := <-imts:
-				{
-					if err := stream.Send(&edgenode.Image{
-						Image:     image.Im,
-						Timestamp: (image.Ts).Format(customTimeformat),
-					}); err != nil {
-						return fmt.Errorf("EdgeNodeBroker %s\n", err)
-					}
-					ok = true
-				}
-			default:
-				ok = false
-			}
-		}
-
-		numIter := 3
+		numIter := 0
 		for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
 			if s.stopSubcription {
 				break
@@ -331,7 +300,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				break
 			}
 
-			tstart = lastTs.Add(68 * time.Millisecond)
+			tstart = lastTs.Add(1 * time.Millisecond)
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
@@ -358,10 +327,84 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					ok = false
 				}
 			}
-			time.Sleep(2000 * time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
+		}
+
+		/////////////////////////////////////////////////
+
+		imCount = 0
+
+		conStream.CloseSend()
+		<-waitc
+		fmt.Println("sending done")
+
+	} else {
+
+		ok := true
+		for ok {
+			select {
+			case image := <-imts:
+				{
+					lastTs = image.Ts
+					if err := stream.Send(&edgenode.Image{
+						Image:     image.Im,
+						Timestamp: (image.Ts).Format(customTimeformat),
+					}); err != nil {
+						return fmt.Errorf("EdgeNodeBroker %s\n", err)
+					}
+					fmt.Println("sending 1.1.1", (image.Ts).Format(customTimeformat))
+					ok = true
+				}
+			default:
+				ok = false
+				fmt.Println("exit from for loop")
+			}
+		}
+
+		numIter := 3
+		for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
+			fmt.Println("stuck in this loop")
+			if s.stopSubcription {
+				break
+			}
+			numIter++
+			if numIter > maxPollTime {
+				break
+			}
+
+			tstart = lastTs.Add(5 * time.Millisecond)
+			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
+
+			errc := <-errch
+			if errc == storage.ErrTimestampMissing {
+				time.Sleep(1000 * time.Millisecond)
+				continue
+			}
+
+			ok = true
+			for ok {
+				select {
+				case image := <-imts:
+					{
+						lastTs = image.Ts
+						if err := stream.Send(&edgenode.Image{
+							Image:     image.Im,
+							Timestamp: (image.Ts).Format(customTimeformat),
+						}); err != nil {
+							return fmt.Errorf("EdgeNodeBroker %s\n", err)
+						}
+						fmt.Println("sending 2.2.2", (image.Ts).Format(customTimeformat))
+						ok = true
+					}
+				default:
+					ok = false
+				}
+			}
+			time.Sleep(2 * time.Millisecond)
 		}
 
 	}
+	fmt.Println("returning from subscribe")
 
 	return nil
 }
@@ -424,13 +467,8 @@ func (s *EdgeNodeBroker) UnaryInterceptor(ctx context.Context, req interface{}, 
 func (s *EdgeNodeBroker) regsterWithEdgeServer(edgeServerIpaddr, login, password string) error {
 	en := NewEdgeNodeClient(login, password) //username and password
 
-	creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
-	if err != nil {
-		return fmt.Errorf("EdgeNodeBroker: could not load tls cert: %s\n", err)
-	}
-
 	// Connect to edge server
-	conn, err := grpc.Dial(edgeServerIpaddr, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&en.Auth))
+	conn, err := grpc.Dial(edgeServerIpaddr, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("EdgeNodeBroker did not connect: %s\n", err)
 	}

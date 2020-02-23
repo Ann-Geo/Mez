@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"vsc_workspace/Mez_upload/api/edgeserver"
+	"vsc_workspace/Mez_upload_woa/api/edgeserver"
 )
 
 type EdgeNodeClient struct {

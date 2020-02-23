@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"strings"
 
-	"vsc_workspace/Mez_upload/broker"
+	"vsc_workspace/Mez_upload_woa/broker"
 )
 
 func main() {

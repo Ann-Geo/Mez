@@ -7,6 +7,7 @@ Each segment is protected by a read-write lock
 package storage
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -119,6 +120,9 @@ func (memlog *MemLog) Read(imts chan<- ImageTimestamp, tstart, tstop Timestamp, 
 	memlog.tsmemlog.tslog[row(currpos)].lk.RLock()
 	tcurr := memlog.tsmemlog.tslog[row(currpos)].ts[col(currpos)]
 	memlog.tsmemlog.tslog[row(currpos)].lk.RUnlock()
+
+	fmt.Println("tstart ---", tstart)
+	fmt.Println("tcurr ----", tcurr)
 
 	if tstart.After(tcurr) { // No entries yet
 		err <- ErrTimestampMissing

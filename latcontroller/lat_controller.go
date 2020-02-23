@@ -13,7 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"vsc_workspace/Mez_upload/api/controller"
+	"vsc_workspace/Mez_upload_woa/api/controller"
 
 	"gocv.io/x/gocv"
 
@@ -56,24 +56,40 @@ type dataSet struct {
 	firstFrameRead gocv.Mat
 }
 
-func NewController(ipaddr string) *Controller {
+func NewController(ipaddr, imPath string) *Controller {
 	fKnobVals := []int{0, 250000, 283000, 308000, 332000,
 		0, 377500, 401500, 430000, 445000,
 		0, 507000, 540000, 551500, 580000,
 		0, 520000, 537000, 546000, 557800,
 		0, 225000, 229300, 236800, 241500,
 		0, 245000, 256000, 261300, 267500}
-	dukeSim := newDataSet("/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/simple.csv",
-		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/simple_knobs.txt",
-		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
-	dukeMed := newDataSet("/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/medium.csv",
-		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/medium_knobs.txt",
-		"/home/research/goworkspace/src/vsc_workspace/Mez_upload/latcontroller/duke/firstframes/086667.png", fKnobVals[20:25])
+	dukeSim := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/simple.csv",
+		imPath+"Mez_upload_woa/latcontroller/duke/simple_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
+	dukeMed := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/medium.csv",
+		imPath+"Mez_upload_woa/latcontroller/duke/medium_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/086667.png", fKnobVals[20:25])
+	dukeComp := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/complex.csv",
+		imPath+"Mez_upload_woa/latcontroller/duke/complex_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/071878.png", fKnobVals[25:30])
+	jaadSim := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/simple.csv",
+		imPath+"Mez_upload_woa/latcontroller/jaad/simple_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00110.png", fKnobVals[0:5])
+	jaadMed := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/medium.csv",
+		imPath+"Mez_upload_woa/latcontroller/jaad/medium_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00050.png", fKnobVals[5:10])
+	jaadComp := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/complex.csv",
+		imPath+"Mez_upload_woa/latcontroller/jaad/complex_knobs.txt",
+		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00230.png", fKnobVals[10:15])
 
 	return &Controller{
-		dukeSim: dukeSim,
-		dukeMed: dukeMed,
-		ipaddr:  ipaddr,
+		dukeSim:  dukeSim,
+		dukeMed:  dukeMed,
+		dukeComp: dukeComp,
+		jaadSim:  jaadSim,
+		jaadMed:  jaadMed,
+		jaadComp: jaadComp,
+		ipaddr:   ipaddr,
 	}
 }
 
@@ -368,7 +384,7 @@ func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
 }
 
 /**************************image modification****************************/
-func (s *Controller) modifyImage(knob string, imbytes []uint8) []uint8 {
+func (s *Controller) modifyImage(knob string, imbytes []uint8, resultFile *os.File) []uint8 {
 	fmt.Println("modifyImage invoked", knob)
 	var emptyByte []uint8
 
@@ -414,6 +430,7 @@ func (s *Controller) modifyImage(knob string, imbytes []uint8) []uint8 {
 	t2 := gocv.GetTickCount()
 	t := (t2 - t1) / gocv.GetTickFrequency()
 	fmt.Println("total modification time", t)
+	fmt.Fprintf(resultFile, "controller latency: %f\n", t)
 
 	return imgBytes
 
@@ -511,6 +528,13 @@ func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) gocv.M
 
 func (s *Controller) Control(stream controller.LatencyController_ControlServer) error {
 
+	resultFile, err := os.Create("cont_lat.txt")
+	if err != nil {
+		log.Fatalf("Cannot create result file %v\n", err)
+	}
+
+	defer resultFile.Close()
+
 	fmt.Println("Control invoked")
 	s.prevFrame = s.targetDataset.firstFrameMat
 
@@ -570,7 +594,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			currentLat = 0
 		}
 
-		modImBytes := s.modifyImage(knob, req.GetImage())
+		modImBytes := s.modifyImage(knob, req.GetImage(), resultFile)
 		if len(modImBytes) == 0 {
 			continue
 		}

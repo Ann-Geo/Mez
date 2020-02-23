@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"vsc_workspace/Mez_upload/api/edgenode"
-	"vsc_workspace/Mez_upload/client"
+	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"vsc_workspace/Mez_upload_woa/client"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

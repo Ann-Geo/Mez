@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"vsc_workspace/Mez_upload/api/edgenode"
-	"vsc_workspace/Mez_upload/api/edgeserver"
+	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"vsc_workspace/Mez_upload_woa/api/edgeserver"
 )
 
 type EdgeServerClient struct {
@@ -46,7 +46,7 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		return err
 	}
 
-	//numImagesRecvd := 0
+	numImagesRecvd := 0
 	for {
 		im, err := stream.Recv()
 		if err == io.EOF {
@@ -60,8 +60,8 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		// Store image and timestamp got from edgenode
 		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 		s.store[impars.Camid].Append(im.GetImage(), ts)
-		//numImagesRecvd++
-		//log.Printf("EdgeServerClient: Number of images received %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
+		numImagesRecvd++
+		log.Printf("EdgeServerClient: Number of images received ---- %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
 
 		s.mutex.Lock()
 
@@ -88,12 +88,21 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 
 func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters) error {
 
+	//n/w latency file
 	resultFile, err := os.Create("nw_lat_1st_sub.txt")
 	if err != nil {
 		log.Fatalf("Cannot create result file %v\n", err)
 	}
 
 	defer resultFile.Close()
+
+	//sub latency file
+	subFile, err1 := os.Create("sub_lat.txt")
+	if err1 != nil {
+		log.Fatalf("Cannot create result sub file %v\n", err)
+	}
+
+	defer subFile.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
@@ -102,6 +111,7 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 	imEdgeNodePars := &edgenode.ImageStreamParameters{Camid: impars.Camid, Latency: impars.Latency, Accuracy: impars.Accuracy,
 		Start: impars.Start, Stop: impars.Stop}
 
+	prevLat := time.Now()
 	stream, err := client.Subscribe(ctx, imEdgeNodePars)
 	if err != nil {
 		return err
@@ -109,7 +119,9 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 
 	numImagesRecvd := 0
 	for {
+
 		im, err := stream.Recv()
+
 		if err == io.EOF {
 			fmt.Println("returning from edge server client")
 			break
@@ -129,11 +141,17 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 
 		fmt.Println("latency=", imLatency)
 
-		go sendMeasuredLatency(client, imLatency)
+		numImagesRecvd++
+
+		if numImagesRecvd != 99 {
+			go sendMeasuredLatency(client, imLatency)
+		}
 
 		imLen := len(im.GetImage())
 		achAcc := tsSendAndtsRecAndAccuSlice[2]
 		fmt.Fprintf(resultFile, "current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
+		fmt.Fprintf(subFile, "sub latency: %s\n", tsRcvd.Sub(prevLat))
+		prevLat = tsRcvd
 
 		log.Printf("Response from Subscribe: current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
 
@@ -141,7 +159,7 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 		//ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 		tsRec, _ := time.Parse(customTimeformat, tsSendAndtsRecAndAccuSlice[1])
 		s.store[impars.Camid].Append(im.GetImage(), tsRec)
-		numImagesRecvd++
+
 		log.Printf("EdgeServerClient: Number of images received %d, of size %d time %s", numImagesRecvd, len(im.Image), tsRec)
 
 		s.mutex.Lock()
@@ -172,10 +190,16 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 func sendMeasuredLatency(client edgenode.PubSubClient, imLatency time.Duration) {
 
 	imLatstr := imLatency.String()
+	var imLatstrFloatstr string
 
 	re := regexp.MustCompile("[0-9]+")
 	integerSlice := re.FindAllString(imLatstr, -1)
-	imLatstrFloatstr := integerSlice[0] + "." + integerSlice[1]
+	if strings.Contains(imLatstr, ".") {
+		imLatstrFloatstr = integerSlice[0] + "." + integerSlice[1]
+	} else {
+		imLatstrFloatstr = integerSlice[0]
+	}
+
 	var imLatstrFloat float64
 	if s, err := strconv.ParseFloat(imLatstrFloatstr, 64); err == nil {
 		imLatstrFloat = s

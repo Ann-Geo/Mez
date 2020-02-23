@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
-	"vsc_workspace/Mez_upload/api/edgenode"
-	"vsc_workspace/Mez_upload/client"
+	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"vsc_workspace/Mez_upload_woa/client"
+
+	"gocv.io/x/gocv"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -50,16 +51,20 @@ func main() {
 	for _, file := range files {
 		fmt.Println(file)
 
-		imBuf, err := ioutil.ReadFile(file)
-		fmt.Printf("%T\n", imBuf)
-		if err != nil {
-			log.Fatalf("cannot read file")
+		//imBuf, err := ioutil.ReadFile(file)
+		//fmt.Printf("%T\n", imBuf)
+		//if err != nil {
+		//log.Fatalf("cannot read file")
 
-		}
+		//}
+
+		imBuf := gocv.IMRead(file, gocv.IMReadColor)
+		buffer := imBuf.ToBytes()
+
 		time.Sleep(time.Duration(frameRate) * time.Millisecond)
 		ts := time.Now().Format(customTimeformat)
 		err = stream.Send(&edgenode.Image{
-			Image:     imBuf,
+			Image:     buffer,
 			Timestamp: ts,
 		})
 		if err != nil {
