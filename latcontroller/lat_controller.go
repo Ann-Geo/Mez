@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"vsc_workspace/Mez_upload_woa/api/controller"
 
 	"gocv.io/x/gocv"
@@ -552,6 +553,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 
 		imCount = imCount + 1
 		req, err := stream.Recv()
+		fmt.Println("received from ES broker---", time.Now())
 		if err == io.EOF {
 			return nil
 		}
@@ -603,10 +605,16 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 
 		imRecdTime := strings.Split(req.GetCurrentLat(), "and")[0]
 
-		sendErr := stream.Send(&controller.CustomImage{
+		resp := &controller.CustomImage{
 			Image:       modImBytes,
 			AcheivedAcc: imRecdTime + "and" + acheivedAcc,
-		})
+		}
+
+		fmt.Println(resp.AcheivedAcc)
+
+		sendErr := stream.Send(resp)
+
+		fmt.Println()
 		if sendErr != nil {
 			log.Fatalf("Error while sending data to EN broker: %v", sendErr)
 			return sendErr

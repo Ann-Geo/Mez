@@ -250,6 +250,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					Image:     img,
 					Timestamp: ts.Format(customTimeformat) + "and" + res.GetAcheivedAcc(),
 				}
+				fmt.Println("sending to ES broker -----", modIm.Timestamp)
+				//fmt.Println(modIm.Timestamp)
 				stream.Send(modIm)
 
 			}
@@ -296,16 +298,19 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				break
 			}
 			numIter++
+			fmt.Println("numIter -----", numIter)
 			if numIter > maxPollTime {
 				break
 			}
 
 			tstart = lastTs.Add(1 * time.Millisecond)
+			fmt.Println("here1111111111111111111")
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
 			if errc == storage.ErrTimestampMissing {
-				time.Sleep(1000 * time.Millisecond)
+				time.Sleep(1 * time.Millisecond)
+				fmt.Println("here22222222222222222")
 				continue
 			}
 
@@ -315,19 +320,26 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				case image := <-imts:
 					{
 						lastTs = image.Ts
-						if err := stream.Send(&edgenode.Image{
-							Image:     image.Im,
-							Timestamp: (image.Ts).Format(customTimeformat),
-						}); err != nil {
-							return fmt.Errorf("EdgeNodeBroker %s\n", err)
+						fmt.Println("lastTs -----", lastTs)
+						req := &controller.OriginalImage{
+							Image: image.Im,
+							//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
+							CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
 						}
+						fmt.Println(currentLat)
+						//curLatLock.Unlock()
+
+						fmt.Println("send to controller", time.Now())
+						conStream.Send(req)
 						ok = true
+						imCount = imCount + 1
 					}
 				default:
 					ok = false
 				}
 			}
-			time.Sleep(2 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
+			fmt.Println("here333333333333333333333")
 		}
 
 		/////////////////////////////////////////////////
@@ -361,23 +373,25 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 			}
 		}
 
-		numIter := 3
+		numIter := 0
 		for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
 			fmt.Println("stuck in this loop")
 			if s.stopSubcription {
 				break
 			}
 			numIter++
+			fmt.Println("numIter", numIter)
 			if numIter > maxPollTime {
 				break
 			}
 
-			tstart = lastTs.Add(5 * time.Millisecond)
+			tstart = lastTs.Add(1 * time.Millisecond)
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
+			fmt.Println(errc)
 			if errc == storage.ErrTimestampMissing {
-				time.Sleep(1000 * time.Millisecond)
+				time.Sleep(210 * time.Millisecond)
 				continue
 			}
 
@@ -400,7 +414,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					ok = false
 				}
 			}
-			time.Sleep(2 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 		}
 
 	}

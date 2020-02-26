@@ -183,6 +183,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		go s.subscribeFromEdgenode(impars, errchsub)
 
 		errsub := <-errchsub
+		fmt.Println(errsub)
 		if errsub != nil {
 			log.Println(errsub)
 		}
@@ -242,13 +243,13 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 			break
 		}
 
-		tstart = lastTs.Add(1 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
+		tstart = lastTs.Add(200 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
 		fmt.Println("here1111111111111111111")
 
 		go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 		errc := <-errch
 		if errc == storage.ErrTimestampMissing {
-			time.Sleep(1 * time.Second) // TODO: Hacky - Sleep for a second
+			time.Sleep(2 * time.Millisecond) // TODO: Hacky - Sleep for a second
 			fmt.Println("here22222222222222222")
 			continue
 		}
