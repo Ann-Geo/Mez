@@ -172,6 +172,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	// Subscribe images from edge node - concurrent
 	errchsub := make(chan error)
 	defer close(errchsub)
+	c := make(chan bool)
 
 	//first check to see anyone subscribing to that camera
 
@@ -180,13 +181,14 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	if s.numbSubscribers[impars.Camid] == 1 {
 		//if no one then go subscribe
 		fmt.Println("Sub from EN")
-		go s.subscribeFromEdgenode(impars, errchsub)
+		go s.subscribeFromEdgenode(impars, c) //,errchsub)
 
-		errsub := <-errchsub
-		fmt.Println(errsub)
-		if errsub != nil {
-			log.Println(errsub)
-		}
+		//errsub := <-errchsub
+		//fmt.Println(errsub)
+		//if errsub != nil {
+		//log.Println(errsub)
+		//}
+		<-c
 	}
 
 	//fmt.Println("start reading")
@@ -244,13 +246,13 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		}
 
 		tstart = lastTs.Add(200 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
-		fmt.Println("here1111111111111111111")
+		//fmt.Println("here1111111111111111111")
 
 		go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 		errc := <-errch
 		if errc == storage.ErrTimestampMissing {
-			time.Sleep(2 * time.Millisecond) // TODO: Hacky - Sleep for a second
-			fmt.Println("here22222222222222222")
+			time.Sleep(1 * time.Microsecond) // TODO: Hacky - Sleep for a second
+			//fmt.Println("here22222222222222222")
 			continue
 		}
 		ok = true
@@ -272,7 +274,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 			}
 		}
 
-		time.Sleep(2 * time.Millisecond) // Sleep for a second
+		time.Sleep(1 * time.Microsecond) // Sleep for a second
 		fmt.Println("here333333333333333333333")
 
 	}
@@ -322,6 +324,7 @@ func (s *EdgeServerBroker) UnaryInterceptor(ctx context.Context, req interface{}
 	return handler(ctx, req)
 }
 
+/*
 func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamParameters, errch chan<- error) {
 	// TO DO: edge node username and password are hardcoded
 
@@ -364,6 +367,52 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 			errch <- err
 		}
 		errch <- nil
+	}
+
+}
+*/
+
+func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamParameters, c chan<- bool) {
+	// TO DO: edge node username and password are hardcoded
+
+	if s.actController == "0" {
+
+		cons := NewEdgeServerClient("client", "edge") //username and password
+
+		// Connect to edge nodebroker
+		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("could not connect with edge node")
+			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
+		}
+		defer conn.Close()
+		cl := edgenode.NewPubSubClient(conn)
+
+		err = cons.SubscribeImage(s, cl, impars, c)
+		if err != nil {
+			log.Fatalf("error while subscribing edge node")
+		}
+
+	} else {
+		cons := NewEdgeServerClientWithControl("client", "edge") //username and password
+		//cons := NewEdgeServerClient("client", "edge") //username and password
+
+		// Connect to edge nodebroker
+		fmt.Println(s.nodeInfoMap[impars.Camid])
+		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
+		if err != nil {
+			fmt.Println("could not connect with Edge node broker")
+			log.Fatalf("could not connect with edge node")
+			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
+		}
+		defer conn.Close()
+		cl := edgenode.NewPubSubClient(conn)
+
+		err = cons.SubscribeImage(s, cl, impars)
+		if err != nil {
+			log.Fatalf("error while subscribing edge node")
+		}
+
 	}
 
 }

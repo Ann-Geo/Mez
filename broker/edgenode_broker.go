@@ -303,13 +303,13 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				break
 			}
 
-			tstart = lastTs.Add(1 * time.Millisecond)
+			tstart = lastTs.Add(200 * time.Millisecond)
 			fmt.Println("here1111111111111111111")
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
 			if errc == storage.ErrTimestampMissing {
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(1 * time.Microsecond)
 				fmt.Println("here22222222222222222")
 				continue
 			}
@@ -338,7 +338,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					ok = false
 				}
 			}
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(1 * time.Microsecond)
 			fmt.Println("here333333333333333333333")
 		}
 
@@ -385,13 +385,13 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				break
 			}
 
-			tstart = lastTs.Add(1 * time.Millisecond)
+			tstart = lastTs.Add(200 * time.Millisecond)
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
 			fmt.Println(errc)
 			if errc == storage.ErrTimestampMissing {
-				time.Sleep(210 * time.Millisecond)
+				time.Sleep(1 * time.Microsecond)
 				continue
 			}
 
@@ -414,7 +414,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					ok = false
 				}
 			}
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(1 * time.Microsecond)
 		}
 
 	}

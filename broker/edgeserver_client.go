@@ -33,7 +33,7 @@ func NewEdgeServerClientWithControl(login, password string) *EdgeServerClientWit
 	return &EdgeServerClientWithControl{Auth: Authentication{login: login, password: password}, rpccomplete: make(chan string)}
 }
 
-func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters) error {
+func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters, c chan<- bool) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
@@ -46,6 +46,8 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 	if err != nil {
 		return err
 	}
+
+	//c := make(chan bool)
 
 	numImagesRecvd := 0
 	for {
@@ -64,6 +66,11 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 		s.store[impars.Camid].Append(im.GetImage(), ts)
 		numImagesRecvd++
+		if numImagesRecvd == 1 {
+			c <- true
+		}
+		trecvd := time.Now()
+		fmt.Println("tsreceived ----", trecvd)
 		log.Printf("EdgeServerClient: Number of images received ---- %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
 
 		s.mutex.Lock()

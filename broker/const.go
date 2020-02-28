@@ -7,5 +7,5 @@ const (
 	clientIDKey contextKey = iota
 
 	// TODO: Polling time for subscribe (edgenode and edgeserver)
-	maxPollTime = 25000
+	maxPollTime = 1000000
 )
