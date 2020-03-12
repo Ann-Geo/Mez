@@ -4,15 +4,17 @@ import (
 	"os"
 	"os/signal"
 
-	"vsc_workspace/Mez_upload_woa/broker"
+	"github.com/Ann-Geo/Mez/broker"
 )
+
+var actController string = "0"
 
 func main() {
 
-	esb := broker.NewEdgeServerBroker("EdgeServer", "127.0.0.1:20000")
+	esb := broker.NewEdgeServerBroker("EdgeServer", "127.0.0.1:20000", actController)
 	go esb.StartEdgeServerBroker()
 
-	enb1 := broker.NewEdgeNodeBroker("cam1", "127.0.0.1:10000")
+	enb1 := broker.NewEdgeNodeBroker("cam1", "127.0.0.1:10000", actController)
 	go enb1.StartEdgeNodeBroker("127.0.0.1:20000", "client", "edge")
 
 	/*

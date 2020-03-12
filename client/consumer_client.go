@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
 
 	"google.golang.org/grpc"
 )

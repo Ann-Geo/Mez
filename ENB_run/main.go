@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"strings"
 
-	"vsc_workspace/Mez_upload_woa/broker"
+	"github.com/Ann-Geo/Mez/broker"
 )
 
 func main() {

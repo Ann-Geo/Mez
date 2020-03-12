@@ -7,14 +7,15 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"vsc_workspace/Mez_upload_woa/api/controller"
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
-	"vsc_workspace/Mez_upload_woa/storage"
+	"github.com/Ann-Geo/Mez/api/controller"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"github.com/Ann-Geo/Mez/storage"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -34,6 +35,7 @@ type EdgeNodeBroker struct {
 	applicationPool map[string]string
 	actController   string
 	cLat            chan string
+	c1              chan bool
 }
 
 func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
@@ -46,11 +48,12 @@ func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
 		applicationPool: make(map[string]string),
 		actController:   actController,
 		cLat:            make(chan string),
+		c1:              make(chan bool),
 	}
 }
 
 func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password string) error {
-	fmt.Println(s.actController)
+	//fmt.Println(s.actController)
 	log.Println("Starting edge node broker", s.serverName)
 	lis, err := net.Listen("tcp", s.ipaddr)
 	if err != nil {
@@ -79,7 +82,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 //Connect API returns id assigned by Mez
 func (s *EdgeNodeBroker) Connect(ctx context.Context, url *edgenode.Url) (*edgenode.Id, error) {
 
-	fmt.Println("connect invoked")
+	//fmt.Println("connect invoked")
 	//generates the id
 	id := int32(rand.Intn(100-0) + 0)
 
@@ -96,12 +99,21 @@ func (s *EdgeNodeBroker) Connect(ctx context.Context, url *edgenode.Url) (*edgen
 // Publish only supported by Edge node brokers
 func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 
-	fmt.Println("invoked")
+	//fmt.Println("invoked")
+
+	resultFile, err := os.Create("pub_lat.txt")
+	if err != nil {
+		log.Fatalf("Cannot create result file %v\n", err)
+	}
+
+	defer resultFile.Close()
 
 	// GRPC - Client side streaming
 	numImagesRecvd := 0
 	for {
 		im, err := stream.Recv()
+		tsrcvd := time.Now()
+
 		if err == io.EOF {
 			return stream.SendAndClose(&edgenode.Status{
 				Status: true,
@@ -114,10 +126,18 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 		// Store image and timestamp
 		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
 
+		fmt.Fprintf(resultFile, "pub latency: %s\n", tsrcvd.Sub(ts))
+
 		s.store[s.serverName].Append(im.GetImage(), ts)
 
 		numImagesRecvd++
-		fmt.Println(numImagesRecvd, ts)
+		fmt.Println(numImagesRecvd)
+		if numImagesRecvd == 1 {
+			s.c1 <- true
+			//fmt.Println("put to c1")
+		}
+
+		//fmt.Println("out")
 	}
 }
 
@@ -139,10 +159,10 @@ func newEnbWithCntlrClient(ipaddrCont string) *enbWithCntlrClient {
 	}
 
 	cl := controller.NewLatencyControllerClient(conn)
-	fmt.Printf("Created client %v\n", cl)
+	//fmt.Printf("Created client %v\n", cl)
 	return &enbWithCntlrClient{
 		numPublished: 0,
-		initialLat:   "1",
+		initialLat:   "32",
 		subResChan:   make(chan controller.CustomImage),
 		conn:         conn,
 		cl:           cl,
@@ -154,7 +174,7 @@ func newEnbWithCntlrClient(ipaddrCont string) *enbWithCntlrClient {
 // Edge node subscription interacts with the controller to produce a stream that satisfies the requested latency accuracy
 func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, stream edgenode.PubSub_SubscribeServer) error {
 
-	fmt.Println("subscribe invoked")
+	//fmt.Println("subscribe invoked")
 	// GRPC - Server side streaming
 
 	if s.serverName != imPars.Camid {
@@ -183,6 +203,11 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 	defer close(imts)
 	defer close(errch)
 
+	fmt.Println("here1")
+
+	fmt.Println(<-s.c1)
+
+	fmt.Println("here2")
 	// Concurrent read of images from store got from producer
 	go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 	imCount := 0
@@ -195,7 +220,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 	var lastTs storage.Timestamp
 
 	if s.actController == "1" {
-		fmt.Println("inside controller")
+		//fmt.Println("inside controller")
 		curLatLock.Lock()
 		currentLat = "1"
 		lat := "1"
@@ -233,7 +258,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				if err == io.EOF {
 					break
 				}
-				fmt.Println("received from cont", time.Now())
+				//fmt.Println("received from cont", time.Now())
 				if err != nil {
 					log.Fatalf("Error while receiving: %v\n", err)
 					break
@@ -250,12 +275,12 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					Image:     img,
 					Timestamp: ts.Format(customTimeformat) + "and" + res.GetAcheivedAcc(),
 				}
-				fmt.Println("sending to ES broker -----", modIm.Timestamp)
+				//fmt.Println("sending to ES broker -----", modIm.Timestamp)
 				//fmt.Println(modIm.Timestamp)
 				stream.Send(modIm)
 
 			}
-			time.Sleep(500 * time.Millisecond)
+			//time.Sleep(500 * time.Millisecond)
 			close(waitc)
 		}()
 
@@ -277,10 +302,10 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 						//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
 						CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
 					}
-					fmt.Println(currentLat)
+					//fmt.Println(currentLat)
 					//curLatLock.Unlock()
 
-					fmt.Println("send to controller", time.Now())
+					//fmt.Println("send to controller", time.Now())
 					conStream.Send(req)
 					ok = true
 					imCount = imCount + 1
@@ -298,19 +323,19 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				break
 			}
 			numIter++
-			fmt.Println("numIter -----", numIter)
+			//fmt.Println("numIter -----", numIter)
 			if numIter > maxPollTime {
 				break
 			}
 
 			tstart = lastTs.Add(200 * time.Millisecond)
-			fmt.Println("here1111111111111111111")
+			//fmt.Println("here1111111111111111111")
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
 			if errc == storage.ErrTimestampMissing {
-				time.Sleep(1 * time.Microsecond)
-				fmt.Println("here22222222222222222")
+				time.Sleep(2 * time.Millisecond)
+				//fmt.Println("here22222222222222222")
 				continue
 			}
 
@@ -320,16 +345,16 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				case image := <-imts:
 					{
 						lastTs = image.Ts
-						fmt.Println("lastTs -----", lastTs)
+						//fmt.Println("lastTs -----", lastTs)
 						req := &controller.OriginalImage{
 							Image: image.Im,
 							//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
 							CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
 						}
-						fmt.Println(currentLat)
+						//fmt.Println(currentLat)
 						//curLatLock.Unlock()
 
-						fmt.Println("send to controller", time.Now())
+						//fmt.Println("send to controller", time.Now())
 						conStream.Send(req)
 						ok = true
 						imCount = imCount + 1
@@ -338,8 +363,8 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					ok = false
 				}
 			}
-			time.Sleep(1 * time.Microsecond)
-			fmt.Println("here333333333333333333333")
+			time.Sleep(2 * time.Millisecond)
+			//fmt.Println("here333333333333333333333")
 		}
 
 		/////////////////////////////////////////////////
@@ -348,7 +373,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 
 		conStream.CloseSend()
 		<-waitc
-		fmt.Println("sending done")
+		//fmt.Println("sending done")
 
 	} else {
 
@@ -364,32 +389,33 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 					}); err != nil {
 						return fmt.Errorf("EdgeNodeBroker %s\n", err)
 					}
-					fmt.Println("sending 1.1.1", (image.Ts).Format(customTimeformat))
+					fmt.Println("sending 1.1.1", (image.Ts).Format(customTimeformat), time.Now())
 					ok = true
 				}
 			default:
 				ok = false
-				fmt.Println("exit from for loop")
+				//fmt.Println("exit from for loop")
 			}
 		}
 
 		numIter := 0
 		for lastTs.Before(tstop) { // More reading to be done; Poll for maxPollTime
-			fmt.Println("stuck in this loop")
+			//fmt.Println("stuck in this loop")
 			if s.stopSubcription {
 				break
 			}
 			numIter++
-			fmt.Println("numIter", numIter)
+			//fmt.Println("numIter", numIter)
 			if numIter > maxPollTime {
 				break
 			}
 
 			tstart = lastTs.Add(200 * time.Millisecond)
+
 			go s.store[s.serverName].Read(imts, tstart, tstop, errch)
 
 			errc := <-errch
-			fmt.Println(errc)
+			//fmt.Println(errc)
 			if errc == storage.ErrTimestampMissing {
 				time.Sleep(1 * time.Microsecond)
 				continue
@@ -401,13 +427,14 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				case image := <-imts:
 					{
 						lastTs = image.Ts
+
 						if err := stream.Send(&edgenode.Image{
 							Image:     image.Im,
 							Timestamp: (image.Ts).Format(customTimeformat),
 						}); err != nil {
 							return fmt.Errorf("EdgeNodeBroker %s\n", err)
 						}
-						fmt.Println("sending 2.2.2", (image.Ts).Format(customTimeformat))
+						//fmt.Println("sending 2.2.2", (image.Ts).Format(customTimeformat))
 						ok = true
 					}
 				default:
@@ -418,7 +445,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 		}
 
 	}
-	fmt.Println("returning from subscribe")
+	//fmt.Println("returning from subscribe")
 
 	return nil
 }
@@ -433,14 +460,14 @@ func (s *EdgeNodeBroker) Unsubscribe(ctx context.Context, caminfo *edgenode.Came
 }
 
 func (s *EdgeNodeBroker) LatencyCalc(ctx context.Context, lat *edgenode.LatencyMeasured) (*edgenode.Status, error) {
-	fmt.Printf("LatencyCalc RPC was invoked with %v\n", lat)
+	//fmt.Printf("LatencyCalc RPC was invoked with %v\n", lat)
 
 	s.cLat <- lat.GetCurrentLat()
 
 	//curLatLock.Lock()
 	currentLat = lat.GetCurrentLat()
 	//curLatLock.Unlock()
-	fmt.Println(lat.GetCurrentLat())
+	//fmt.Println(lat.GetCurrentLat())
 
 	status := &edgenode.Status{
 		Status: true,

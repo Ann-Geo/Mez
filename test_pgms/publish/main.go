@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
-	"vsc_workspace/Mez_upload_woa/client"
+
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/client"
 
 	"gocv.io/x/gocv"
 )

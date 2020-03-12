@@ -13,8 +13,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
-	"vsc_workspace/Mez_upload_woa/api/controller"
+
+	"github.com/Ann-Geo/Mez/api/controller"
 
 	"gocv.io/x/gocv"
 
@@ -58,12 +58,12 @@ type dataSet struct {
 }
 
 func NewController(ipaddr, imPath string) *Controller {
-	fKnobVals := []int{0, 250000, 283000, 308000, 332000,
-		0, 377500, 401500, 430000, 445000,
-		0, 507000, 540000, 551500, 580000,
-		0, 520000, 537000, 546000, 557800,
-		0, 225000, 229300, 236800, 241500,
-		0, 245000, 256000, 261300, 267500}
+	fKnobVals := []int{0, 234100, 254500, 271000, 281000,
+		0, 354000, 366000, 380000, 391300,
+		0, 475000, 501700, 512000, 523600,
+		0, 513000, 530000, 540000, 553500,
+		0, 218800, 225500, 232500, 237000,
+		0, 239500, 250000, 257000, 263000}
 	dukeSim := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/simple.csv",
 		imPath+"Mez_upload_woa/latcontroller/duke/simple_knobs.txt",
 		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
@@ -101,7 +101,7 @@ func newDataSet(csvFile, knobFile, firstFrameName string, fknobs []int) *dataSet
 
 	lpTable := readCsv(csvFile, knobs)
 
-	fmt.Println(lpTable)
+	//fmt.Println(lpTable)
 
 	//convert first frame to Mat
 	img := gocv.IMRead(firstFrameName, gocv.IMReadColor)
@@ -111,7 +111,7 @@ func newDataSet(csvFile, knobFile, firstFrameName string, fknobs []int) *dataSet
 		log.Fatalf("bytes to Mat conversion failed")
 	}
 
-	fmt.Println("F knob values", fknobs)
+	//fmt.Println("F knob values", fknobs)
 
 	return &dataSet{
 		csvFile:        csvFile,
@@ -277,7 +277,7 @@ func (s *Controller) findInitialSize(lat float64) float64 {
 
 func (s *Controller) SetTarget(ctx context.Context, targets *controller.Targets) (*controller.Status, error) {
 
-	fmt.Println("SetTarget invoked")
+	//fmt.Println("SetTarget invoked")
 
 	targetLat, err := strconv.ParseFloat(targets.GetTargetLat(), 64)
 	if err != nil {
@@ -386,7 +386,7 @@ func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
 
 /**************************image modification****************************/
 func (s *Controller) modifyImage(knob string, imbytes []uint8, resultFile *os.File) []uint8 {
-	fmt.Println("modifyImage invoked", knob)
+	fmt.Println(knob)
 	var emptyByte []uint8
 
 	t1 := gocv.GetTickCount()
@@ -430,8 +430,8 @@ func (s *Controller) modifyImage(knob string, imbytes []uint8, resultFile *os.Fi
 
 	t2 := gocv.GetTickCount()
 	t := (t2 - t1) / gocv.GetTickFrequency()
-	fmt.Println("total modification time", t)
-	fmt.Fprintf(resultFile, "controller latency: %f\n", t)
+	//fmt.Println("total modification time", t*1000)
+	fmt.Fprintf(resultFile, "controller latency: %f\n", t*1000)
 
 	return imgBytes
 
@@ -506,7 +506,7 @@ func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) gocv.M
 		dif = s.targetDataset.frameDiffKS[4]
 	}
 
-	fmt.Println("dif==", dif)
+	//fmt.Println("dif==", dif)
 	grayImageCurr := gocv.NewMat()
 	grayImagePrev := gocv.NewMat()
 	gocv.CvtColor(mat_array, &grayImageCurr, gocv.ColorBGRToGray)
@@ -515,7 +515,7 @@ func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) gocv.M
 	diffIm := gocv.NewMat()
 	gocv.AbsDiff(grayImageCurr, grayImagePrev, &diffIm)
 	nonZeroCount := gocv.CountNonZero(diffIm)
-	fmt.Println("Non zero count", nonZeroCount)
+	//fmt.Println("Non zero count", nonZeroCount)
 
 	if nonZeroCount > dif {
 		return mat_array
@@ -536,7 +536,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 
 	defer resultFile.Close()
 
-	fmt.Println("Control invoked")
+	//fmt.Println("Control invoked")
 	s.prevFrame = s.targetDataset.firstFrameMat
 
 	var currentLat float64
@@ -553,7 +553,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 
 		imCount = imCount + 1
 		req, err := stream.Recv()
-		fmt.Println("received from ES broker---", time.Now())
+		//fmt.Println("received from ES broker---", time.Now())
 		if err == io.EOF {
 			return nil
 		}
@@ -601,7 +601,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			continue
 		}
 
-		fmt.Println("modified image length", len(modImBytes))
+		//fmt.Println("modified image length", len(modImBytes))
 
 		imRecdTime := strings.Split(req.GetCurrentLat(), "and")[0]
 
@@ -610,11 +610,11 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			AcheivedAcc: imRecdTime + "and" + acheivedAcc,
 		}
 
-		fmt.Println(resp.AcheivedAcc)
+		//fmt.Println(resp.AcheivedAcc)
 
 		sendErr := stream.Send(resp)
 
-		fmt.Println()
+		//fmt.Println()
 		if sendErr != nil {
 			log.Fatalf("Error while sending data to EN broker: %v", sendErr)
 			return sendErr

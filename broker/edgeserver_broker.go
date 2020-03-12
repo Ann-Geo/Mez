@@ -6,13 +6,14 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
-	"vsc_workspace/Mez_upload_woa/storage"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"github.com/Ann-Geo/Mez/storage"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -83,7 +84,7 @@ func (s *EdgeServerBroker) Connect(ctx context.Context, url *edgeserver.Url) (*e
 
 // Called by Edge node
 func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.NodeInfo) (*edgeserver.Status, error) {
-	fmt.Println("invoked")
+	//fmt.Println("invoked")
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.nodeInfoMap[nodeinfo.Camid] = nodeinfo.Ipaddr
@@ -100,7 +101,7 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 	// Create storage for edge node at edgeserver
 	s.store[nodeinfo.Camid] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
-	fmt.Println("registered")
+	//fmt.Println("registered")
 	return &edgeserver.Status{
 		Status: true,
 	}, nil
@@ -151,6 +152,12 @@ func (s *EdgeServerBroker) GetCameraInfo(ctx context.Context, campars *edgeserve
 
 // Called by consumer application
 func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, stream edgeserver.PubSub_SubscribeServer) error {
+	resultFile, err := os.Create("sub_lat.txt")
+	if err != nil {
+		log.Fatalf("Cannot create result file %v\n", err)
+	}
+
+	defer resultFile.Close()
 	s.mutex.Lock()
 
 	_, pres := s.nodeInfoMap[impars.Camid]
@@ -176,11 +183,11 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 
 	//first check to see anyone subscribing to that camera
 
-	fmt.Println("num sub", s.numbSubscribers[impars.Camid])
+	//fmt.Println("num sub", s.numbSubscribers[impars.Camid])
 
 	if s.numbSubscribers[impars.Camid] == 1 {
 		//if no one then go subscribe
-		fmt.Println("Sub from EN")
+		//fmt.Println("Sub from EN")
 		go s.subscribeFromEdgenode(impars, c) //,errchsub)
 
 		//errsub := <-errchsub
@@ -203,7 +210,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	defer close(errch)
 
 	// Concurrent read of images from store got from edge node
-	fmt.Println("Read from ES log")
+	//fmt.Println("Read from ES log")
 
 	go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 
@@ -237,6 +244,7 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 
 	numIter := 0
 	for lastTs.Before(tstop) { // More reading to be done; Poll
+		ts2 := time.Now()
 		if s.stopSubcription[impars.Appid+impars.Camid] { // From Unsubscribe API
 			break
 		}
@@ -275,11 +283,13 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		}
 
 		time.Sleep(1 * time.Microsecond) // Sleep for a second
-		fmt.Println("here333333333333333333333")
+		//fmt.Println("here333333333333333333333")
+		tr2 := time.Now()
+		fmt.Fprintf(resultFile, "sub latency: %s\n", tr2.Sub(ts2))
 
 	}
 
-	fmt.Println("returning from subscribe")
+	//fmt.Println("returning from subscribe")
 
 	return nil
 
@@ -398,17 +408,17 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 		//cons := NewEdgeServerClient("client", "edge") //username and password
 
 		// Connect to edge nodebroker
-		fmt.Println(s.nodeInfoMap[impars.Camid])
+		//fmt.Println(s.nodeInfoMap[impars.Camid])
 		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
 		if err != nil {
-			fmt.Println("could not connect with Edge node broker")
+			//fmt.Println("could not connect with Edge node broker")
 			log.Fatalf("could not connect with edge node")
 			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
 		}
 		defer conn.Close()
 		cl := edgenode.NewPubSubClient(conn)
 
-		err = cons.SubscribeImage(s, cl, impars)
+		err = cons.SubscribeImage(s, cl, impars, c)
 		if err != nil {
 			log.Fatalf("error while subscribing edge node")
 		}

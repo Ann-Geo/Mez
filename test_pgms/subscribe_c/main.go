@@ -7,8 +7,9 @@ import (
 	"log"
 	"os"
 	"time"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
-	"vsc_workspace/Mez_upload_woa/client"
+
+	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"github.com/Ann-Geo/Mez/client"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -18,7 +19,7 @@ func main() {
 	tStartUnformat := time.Now()
 	tStart := (tStartUnformat).Format(customTimeformat)
 	fmt.Println(tStart)
-	time.Sleep(5 * time.Second)
+	//time.Sleep(3 * time.Second)
 
 	//create a consumer client with login and password
 	consumer := client.NewConsumerClient("client", "edge") //user name password
@@ -37,8 +38,8 @@ func main() {
 	tStop := (tStopUnformat).Format(customTimeformat)
 	fmt.Println(tStop)
 	appid := "sub1"
-	latency := "1"
-	accuracy := "0.33 duke medium"
+	latency := "10"
+	accuracy := "0.40 jaad complex"
 	camid := "cam1"
 	/******************************************************************************/
 
@@ -48,6 +49,7 @@ func main() {
 	fmt.Println("for meas", time.Now())
 
 	//subscibe API call
+	fmt.Println("subscribe started: ", time.Now())
 	stream, err := consumer.Cl.Subscribe(consumer.Ctx, imPars)
 
 	if err != nil {
@@ -73,9 +75,10 @@ func main() {
 			log.Fatalln("error while receiving stream from Subscribe")
 		}
 
-		log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
+		//log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
 		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
-		fmt.Fprintf(resultFile, "raven latency: %s\n", trecvd.Sub(ts))
+		fmt.Fprintf(resultFile, "pubsub latency: %s\n", trecvd.Sub(ts))
+
 	}
 
 	fmt.Println("done", time.Now())

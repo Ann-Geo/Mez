@@ -6,8 +6,9 @@ import (
 	"io"
 	"log"
 	"time"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
-	"vsc_workspace/Mez_upload_woa/client"
+
+	"github.com/Ann-Geo/Mez/api/edgeserver"
+	"github.com/Ann-Geo/Mez/client"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -54,12 +55,14 @@ func main() {
 	//start receiving files
 	for {
 		im, err := stream.Recv()
+		trcvd := time.Now()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			log.Fatalln("error while receiving stream from Subscribe")
 		}
+		fmt.Println("tsrecevd ------", trcvd)
 
 		log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
 

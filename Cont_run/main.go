@@ -3,7 +3,8 @@ package main
 import (
 	"os"
 	"os/signal"
-	"vsc_workspace/Mez_upload_woa/latcontroller"
+
+	"github.com/Ann-Geo/Mez/latcontroller"
 )
 
 func main() {

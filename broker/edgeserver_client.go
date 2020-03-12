@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
-	"vsc_workspace/Mez_upload_woa/api/edgeserver"
+	"github.com/Ann-Geo/Mez/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgeserver"
 )
 
 type EdgeServerClient struct {
@@ -51,10 +51,12 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 
 	numImagesRecvd := 0
 	for {
+
 		im, err := stream.Recv()
+		fmt.Println("tsreceived ----", time.Now())
 		if err == io.EOF {
 
-			fmt.Println("reached end of file")
+			//fmt.Println("reached end of file")
 			break
 		}
 		//break in channel, time out
@@ -69,8 +71,8 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		if numImagesRecvd == 1 {
 			c <- true
 		}
-		trecvd := time.Now()
-		fmt.Println("tsreceived ----", trecvd)
+		//trecvd := time.Now()
+
 		log.Printf("EdgeServerClient: Number of images received ---- %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
 
 		s.mutex.Lock()
@@ -96,7 +98,7 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 	return nil
 }
 
-func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters) error {
+func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters, c chan<- bool) error {
 
 	//n/w latency file
 	resultFile, err := os.Create("nw_lat_1st_sub.txt")
@@ -107,13 +109,14 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 	defer resultFile.Close()
 
 	//sub latency file
-	subFile, err1 := os.Create("sub_lat.txt")
-	if err1 != nil {
-		log.Fatalf("Cannot create result sub file %v\n", err)
-	}
+	/*
+		subFile, err1 := os.Create("sub_lat.txt")
+		if err1 != nil {
+			log.Fatalf("Cannot create result sub file %v\n", err)
+		}
 
-	defer subFile.Close()
-
+		defer subFile.Close()
+	*/
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
@@ -121,7 +124,7 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 	imEdgeNodePars := &edgenode.ImageStreamParameters{Camid: impars.Camid, Latency: impars.Latency, Accuracy: impars.Accuracy,
 		Start: impars.Start, Stop: impars.Stop}
 
-	prevLat := time.Now()
+	//prevLat := time.Now()
 	stream, err := client.Subscribe(ctx, imEdgeNodePars)
 	if err != nil {
 		return err
@@ -130,12 +133,12 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 	numImagesRecvd := 0
 	for {
 
-		fmt.Println("received new image ---------------------------")
+		//fmt.Println("received new image ---------------------------")
 
 		im, err := stream.Recv()
 
 		if err == io.EOF {
-			fmt.Println("returning from edge server client")
+			//fmt.Println("returning from edge server client")
 			break
 		}
 		//break in channel, time out
@@ -146,25 +149,24 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 		//Sending image transfer latency to Edge node
 		tsRcvd := time.Now()
 		tsSendAndtsRecAndAccu := im.GetTimestamp()
-		fmt.Println("tsSendAndtsRecAndAccu", tsSendAndtsRecAndAccu)
+		//fmt.Println("tsSendAndtsRecAndAccu", tsSendAndtsRecAndAccu)
 		tsSendAndtsRecAndAccuSlice := strings.Split(tsSendAndtsRecAndAccu, "and")
 		tsSend, _ := time.Parse(customTimeformat, tsSendAndtsRecAndAccuSlice[0])
 		imLatency := tsRcvd.Sub(tsSend)
 
-		fmt.Println("latency=", imLatency)
+		//fmt.Println("latency=", imLatency)
 
 		numImagesRecvd++
 
-		if numImagesRecvd < 98 {
-			go cc.sendMeasuredLatency(client, imLatency)
+		//if numImagesRecvd < 98 {
+		go cc.sendMeasuredLatency(client, imLatency)
 
-		}
+		//}
 
 		imLen := len(im.GetImage())
 		achAcc := tsSendAndtsRecAndAccuSlice[2]
 		fmt.Fprintf(resultFile, "current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
-		fmt.Fprintf(subFile, "sub latency: %s\n", tsRcvd.Sub(prevLat))
-		prevLat = tsRcvd
+		//prevLat = tsRcvd
 
 		log.Printf("Response from Subscribe: current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
 
@@ -173,7 +175,11 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 		tsRec, _ := time.Parse(customTimeformat, tsSendAndtsRecAndAccuSlice[1])
 		s.store[impars.Camid].Append(im.GetImage(), tsRec)
 
-		fmt.Println("tsreceived ----", tsRcvd)
+		if numImagesRecvd == 1 {
+			c <- true
+		}
+
+		//fmt.Println("tsreceived ----", tsRcvd)
 		log.Printf("EdgeServerClient: Number of images received %d, of size %d time %s", numImagesRecvd, len(im.Image), tsRec)
 
 		s.mutex.Lock()
@@ -232,7 +238,7 @@ func (cc *EdgeServerClientWithControl) sendMeasuredLatency(client edgenode.PubSu
 	lat := &edgenode.LatencyMeasured{
 		CurrentLat: imLatstrFloatstrCorrectFmt,
 	}
-	fmt.Println("calling latency calc rpc")
+	//fmt.Println("calling latency calc rpc")
 	_, err := client.LatencyCalc(context.Background(), lat)
 
 	if err != nil {

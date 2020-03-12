@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"vsc_workspace/Mez_upload_woa/api/edgenode"
+	"github.com/Ann-Geo/Mez/api/edgenode"
 
 	"google.golang.org/grpc"
 )
