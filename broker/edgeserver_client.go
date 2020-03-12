@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -100,23 +99,6 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 
 func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, client edgenode.PubSubClient, impars *edgeserver.ImageStreamParameters, c chan<- bool) error {
 
-	//n/w latency file
-	resultFile, err := os.Create("nw_lat_1st_sub.txt")
-	if err != nil {
-		log.Fatalf("Cannot create result file %v\n", err)
-	}
-
-	defer resultFile.Close()
-
-	//sub latency file
-	/*
-		subFile, err1 := os.Create("sub_lat.txt")
-		if err1 != nil {
-			log.Fatalf("Cannot create result sub file %v\n", err)
-		}
-
-		defer subFile.Close()
-	*/
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
 
@@ -165,8 +147,6 @@ func (cc *EdgeServerClientWithControl) SubscribeImage(s *EdgeServerBroker, clien
 
 		imLen := len(im.GetImage())
 		achAcc := tsSendAndtsRecAndAccuSlice[2]
-		fmt.Fprintf(resultFile, "current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
-		//prevLat = tsRcvd
 
 		log.Printf("Response from Subscribe: current time: %s, image_size: %d, latency: %s, accuracy: %s\n", tsRcvd, imLen, imLatency, achAcc)
 

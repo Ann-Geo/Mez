@@ -385,11 +385,10 @@ func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
 }
 
 /**************************image modification****************************/
-func (s *Controller) modifyImage(knob string, imbytes []uint8, resultFile *os.File) []uint8 {
+func (s *Controller) modifyImage(knob string, imbytes []uint8) []uint8 {
 	fmt.Println(knob)
 	var emptyByte []uint8
 
-	t1 := gocv.GetTickCount()
 	mat_array, err := gocv.NewMatFromBytes(s.targetDataset.firstFrameRead.Rows(),
 		s.targetDataset.firstFrameRead.Cols(), s.targetDataset.firstFrameRead.Type(), imbytes)
 	if err != nil {
@@ -427,11 +426,6 @@ func (s *Controller) modifyImage(knob string, imbytes []uint8, resultFile *os.Fi
 
 	//convert returned numpy array to bytes
 	imgBytes := mat_array.ToBytes()
-
-	t2 := gocv.GetTickCount()
-	t := (t2 - t1) / gocv.GetTickFrequency()
-	//fmt.Println("total modification time", t*1000)
-	fmt.Fprintf(resultFile, "controller latency: %f\n", t*1000)
 
 	return imgBytes
 
@@ -529,13 +523,6 @@ func (s *Controller) applyFrameDifferencing(f string, mat_array gocv.Mat) gocv.M
 
 func (s *Controller) Control(stream controller.LatencyController_ControlServer) error {
 
-	resultFile, err := os.Create("cont_lat.txt")
-	if err != nil {
-		log.Fatalf("Cannot create result file %v\n", err)
-	}
-
-	defer resultFile.Close()
-
 	//fmt.Println("Control invoked")
 	s.prevFrame = s.targetDataset.firstFrameMat
 
@@ -596,7 +583,7 @@ func (s *Controller) Control(stream controller.LatencyController_ControlServer) 
 			currentLat = 0
 		}
 
-		modImBytes := s.modifyImage(knob, req.GetImage(), resultFile)
+		modImBytes := s.modifyImage(knob, req.GetImage())
 		if len(modImBytes) == 0 {
 			continue
 		}

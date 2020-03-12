@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"time"
 
 	"github.com/Ann-Geo/Mez/api/edgeserver"
@@ -56,18 +55,9 @@ func main() {
 		log.Fatalln("error while subscribing")
 	}
 
-	resultFile, err := os.Create("total_pubsub_lat_raven.txt")
-	if err != nil {
-		log.Fatalf("Cannot create result file %v\n", err)
-	}
-
-	defer resultFile.Close()
-
 	//start receiving files
 	for {
 		im, err := stream.Recv()
-		trecvd := time.Now()
-		fmt.Println(trecvd)
 		if err == io.EOF {
 			break
 		}
@@ -75,9 +65,7 @@ func main() {
 			log.Fatalln("error while receiving stream from Subscribe")
 		}
 
-		//log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
-		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
-		fmt.Fprintf(resultFile, "pubsub latency: %s\n", trecvd.Sub(ts))
+		log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())
 
 	}
 

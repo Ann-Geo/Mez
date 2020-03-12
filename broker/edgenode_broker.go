@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -101,18 +100,10 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 
 	//fmt.Println("invoked")
 
-	resultFile, err := os.Create("pub_lat.txt")
-	if err != nil {
-		log.Fatalf("Cannot create result file %v\n", err)
-	}
-
-	defer resultFile.Close()
-
 	// GRPC - Client side streaming
 	numImagesRecvd := 0
 	for {
 		im, err := stream.Recv()
-		tsrcvd := time.Now()
 
 		if err == io.EOF {
 			return stream.SendAndClose(&edgenode.Status{
@@ -125,8 +116,6 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 
 		// Store image and timestamp
 		ts, _ := time.Parse(customTimeformat, im.GetTimestamp())
-
-		fmt.Fprintf(resultFile, "pub latency: %s\n", tsrcvd.Sub(ts))
 
 		s.store[s.serverName].Append(im.GetImage(), ts)
 
