@@ -15,6 +15,7 @@ import (
 	"github.com/Ann-Geo/Mez/api/edgenode"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
@@ -34,8 +35,14 @@ func NewProducerClient(login, password string) *ProducerClient {
 
 func (pc *ProducerClient) Connect(url, userAddress string) error {
 	var err error
+
+	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	if err != nil {
+		return err
+	}
+
 	// Dial to Mez
-	pc.ConnProdClient, err = grpc.Dial(url, grpc.WithInsecure())
+	pc.ConnProdClient, err = grpc.Dial(url, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&pc.Auth))
 	if err != nil {
 		return err
 	}

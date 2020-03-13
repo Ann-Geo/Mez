@@ -15,6 +15,7 @@ import (
 	"github.com/Ann-Geo/Mez/storage"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -53,7 +54,16 @@ func (s *EdgeServerBroker) StartEdgeServerBroker() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	// Create the TLS credentials
+	creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
+	if err != nil {
+		log.Fatalf("could not load TLS keys: %s", err)
+	}
+
+	// Create an array of gRPC options with the credentials
+	opts := []grpc.ServerOption{grpc.Creds(creds), grpc.UnaryInterceptor(s.UnaryInterceptor)}
+
+	grpcServer := grpc.NewServer(opts...)
 	// Attach client API to broker
 	edgeserver.RegisterPubSubServer(grpcServer, s)
 	if err := grpcServer.Serve(lis); err != nil {
@@ -380,8 +390,13 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 
 		cons := NewEdgeServerClient("client", "edge") //username and password
 
+		creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
+		if err != nil {
+			log.Fatalf("could not load tls cert: %s", err)
+		}
+
 		// Connect to edge nodebroker
-		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
+		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cons.Auth))
 		if err != nil {
 			log.Fatalf("could not connect with edge node")
 			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
@@ -398,9 +413,14 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 		cons := NewEdgeServerClientWithControl("client", "edge") //username and password
 		//cons := NewEdgeServerClient("client", "edge") //username and password
 
+		creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
+		if err != nil {
+			log.Fatalf("could not load tls cert: %s", err)
+		}
+
 		// Connect to edge nodebroker
 		//fmt.Println(s.nodeInfoMap[impars.Camid])
-		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
+		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cons.Auth))
 		if err != nil {
 			//fmt.Println("could not connect with Edge node broker")
 			log.Fatalf("could not connect with edge node")

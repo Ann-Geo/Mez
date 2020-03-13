@@ -385,7 +385,9 @@ func (s *Controller) findKnobs(newImSize float64) (float64, string, float64) {
 
 /**************************image modification****************************/
 func (s *Controller) modifyImage(knob string, imbytes []uint8) []uint8 {
+	fmt.Println("modifyimage")
 	fmt.Println(knob)
+	fmt.Println(len(imbytes))
 	var emptyByte []uint8
 
 	mat_array, err := gocv.NewMatFromBytes(s.targetDataset.firstFrameRead.Rows(),

@@ -38,7 +38,7 @@ func main() {
 	fmt.Println(tStop)
 	appid := "sub1"
 	latency := "10"
-	accuracy := "0.40 jaad complex"
+	accuracy := "0.40 jaad simple"
 	camid := "cam1"
 	/******************************************************************************/
 

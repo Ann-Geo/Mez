@@ -23,23 +23,6 @@ test_pgms: Example publisher and subscriber applications
 
 
 
-Configuration
-    - Genetate TLS credentials and create server.crt, server.csr and server.key files and move them to Mez/cert directory
-    - 
-    - controller
-
-Quick start
-After installing all prerequisites, clone the repository
-    tests
-    examples
-
-Contributors
-
-
-Disclaimer
-
-
-Acknowledgement
 
 
 

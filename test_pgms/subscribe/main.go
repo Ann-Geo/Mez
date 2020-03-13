@@ -17,7 +17,7 @@ func main() {
 
 	tStart := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStart)
-	time.Sleep(30 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	//create a consumer client with login and password
 	consumer := client.NewConsumerClient("client", "edge") //user name password
@@ -35,8 +35,8 @@ func main() {
 	tStop := (time.Now()).Format(customTimeformat)
 	fmt.Println(tStop)
 	appid := "sub1"
-	latency := "1"
-	accuracy := "0.4 jaad simple"
+	latency := "10"
+	accuracy := "0.40 jaad simple"
 	camid := "cam1"
 	/******************************************************************************/
 

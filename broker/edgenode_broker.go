@@ -17,6 +17,7 @@ import (
 	"github.com/Ann-Geo/Mez/storage"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -59,6 +60,12 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		return fmt.Errorf("failed to listen: %v", err)
 	}
 
+	// Create the TLS credentials
+	creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
+	if err != nil {
+		return fmt.Errorf("could not load TLS keys: %s", err)
+	}
+
 	// Create default log storage
 	s.store[s.serverName] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
@@ -68,7 +75,10 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		return fmt.Errorf("EdgeNodeBroker %s\n", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	// Create an array of gRPC options with the credentials
+	opts := []grpc.ServerOption{grpc.Creds(creds), grpc.UnaryInterceptor(s.UnaryInterceptor)}
+
+	grpcServer := grpc.NewServer(opts...)
 	// Attach client API to broker
 	edgenode.RegisterPubSubServer(grpcServer, s)
 	if err := grpcServer.Serve(lis); err != nil {
@@ -281,23 +291,26 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				{
 					lastTs = image.Ts
 					//time.Sleep(200 * time.Millisecond)
-					//fmt.Println("send to cont", time.Now())
-					if imCount != 0 {
-						lat = <-s.cLat
-					}
-					//curLatLock.Lock()
-					req := &controller.OriginalImage{
-						Image: image.Im,
-						//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
-						CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
-					}
-					//fmt.Println(currentLat)
-					//curLatLock.Unlock()
+					//fmt.Println("send to cont here", len(image.Im))
+					if len(image.Im) != 0 {
+						if imCount != 0 {
+							lat = <-s.cLat
+						}
+						//curLatLock.Lock()
+						req := &controller.OriginalImage{
+							Image: image.Im,
+							//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
+							CurrentLat: (image.Ts).Format(customTimeformat) + "and" + lat,
+						}
+						//fmt.Println(currentLat)
+						//curLatLock.Unlock()
 
-					//fmt.Println("send to controller", time.Now())
-					conStream.Send(req)
-					ok = true
-					imCount = imCount + 1
+						//fmt.Println("send to controller", time.Now())
+						conStream.Send(req)
+						ok = true
+						imCount = imCount + 1
+					}
+
 				}
 			default:
 				ok = false
@@ -334,7 +347,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				case image := <-imts:
 					{
 						lastTs = image.Ts
-						//fmt.Println("lastTs -----", lastTs)
+						//fmt.Println("send to cont", len(image.Im))
 						req := &controller.OriginalImage{
 							Image: image.Im,
 							//CurrentLat: (image.Ts).Format(customTimeformat) + "and" + currentLat,
@@ -497,8 +510,13 @@ func (s *EdgeNodeBroker) UnaryInterceptor(ctx context.Context, req interface{}, 
 func (s *EdgeNodeBroker) regsterWithEdgeServer(edgeServerIpaddr, login, password string) error {
 	en := NewEdgeNodeClient(login, password) //username and password
 
+	creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
+	if err != nil {
+		return fmt.Errorf("EdgeNodeBroker: could not load tls cert: %s\n", err)
+	}
+
 	// Connect to edge server
-	conn, err := grpc.Dial(edgeServerIpaddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(edgeServerIpaddr, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&en.Auth))
 	if err != nil {
 		return fmt.Errorf("EdgeNodeBroker did not connect: %s\n", err)
 	}

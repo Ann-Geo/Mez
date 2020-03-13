@@ -12,6 +12,7 @@ import (
 	"github.com/Ann-Geo/Mez/api/edgeserver"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type ConsumerClient struct {
@@ -31,8 +32,14 @@ func NewConsumerClient(login, password string) *ConsumerClient {
 func (cc *ConsumerClient) Connect(url, userAddress string) error {
 
 	var err error
+
+	creds, err := credentials.NewClientTLSFromFile("../../cert/server.crt", "")
+	if err != nil {
+		return err
+	}
+
 	// Dial to Mez
-	cc.ConnConsClient, err = grpc.Dial(url, grpc.WithInsecure())
+	cc.ConnConsClient, err = grpc.Dial(url, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cc.Auth))
 	if err != nil {
 		return err
 	}
