@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -152,12 +151,7 @@ func (s *EdgeServerBroker) GetCameraInfo(ctx context.Context, campars *edgeserve
 
 // Called by consumer application
 func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, stream edgeserver.PubSub_SubscribeServer) error {
-	resultFile, err := os.Create("sub_lat.txt")
-	if err != nil {
-		log.Fatalf("Cannot create result file %v\n", err)
-	}
 
-	defer resultFile.Close()
 	s.mutex.Lock()
 
 	_, pres := s.nodeInfoMap[impars.Camid]
@@ -244,7 +238,6 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 
 	numIter := 0
 	for lastTs.Before(tstop) { // More reading to be done; Poll
-		ts2 := time.Now()
 		if s.stopSubcription[impars.Appid+impars.Camid] { // From Unsubscribe API
 			break
 		}
@@ -284,8 +277,6 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 
 		time.Sleep(1 * time.Microsecond) // Sleep for a second
 		//fmt.Println("here333333333333333333333")
-		tr2 := time.Now()
-		fmt.Fprintf(resultFile, "sub latency: %s\n", tr2.Sub(ts2))
 
 	}
 
