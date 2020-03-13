@@ -56,7 +56,7 @@ func NewTimestampMemLog() *TimestampMemLog {
 		tsmemlog.tslog[i].ts = make([]Timestamp, SEGSIZE)
 		tsmemlog.tslog[i].lk = &sync.RWMutex{}
 	}
-	tsmemlog.currpos = SEGSIZE * LOGSIZE //Initially outside range
+	tsmemlog.currpos = 0 //SEGSIZE * LOGSIZE //Initially outside range
 	return &tsmemlog
 }
 
@@ -116,6 +116,7 @@ func (memlog *MemLog) Read(imts chan<- ImageTimestamp, tstart, tstop Timestamp, 
 	}
 
 	currpos := atomic.LoadUint64(&memlog.tsmemlog.currpos)
+	//fmt.Println("currpos", currpos)
 	memlog.tsmemlog.tslog[row(currpos)].lk.RLock()
 	tcurr := memlog.tsmemlog.tslog[row(currpos)].ts[col(currpos)]
 	memlog.tsmemlog.tslog[row(currpos)].lk.RUnlock()

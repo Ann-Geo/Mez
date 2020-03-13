@@ -121,10 +121,10 @@ func (s *EdgeNodeBroker) Publish(stream edgenode.PubSub_PublishServer) error {
 
 		numImagesRecvd++
 		fmt.Println(numImagesRecvd)
-		if numImagesRecvd == 1 {
+		/*if numImagesRecvd == 1 {
 			s.c1 <- true
 			//fmt.Println("put to c1")
-		}
+		}*/
 
 		//fmt.Println("out")
 	}
@@ -194,7 +194,7 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 
 	fmt.Println("here1")
 
-	fmt.Println(<-s.c1)
+	//fmt.Println(<-s.c1)
 
 	fmt.Println("here2")
 	// Concurrent read of images from store got from producer
