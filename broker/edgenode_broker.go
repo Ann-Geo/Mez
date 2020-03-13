@@ -151,7 +151,7 @@ func newEnbWithCntlrClient(ipaddrCont string) *enbWithCntlrClient {
 	//fmt.Printf("Created client %v\n", cl)
 	return &enbWithCntlrClient{
 		numPublished: 0,
-		initialLat:   "32",
+		initialLat:   "1",
 		subResChan:   make(chan controller.CustomImage),
 		conn:         conn,
 		cl:           cl,

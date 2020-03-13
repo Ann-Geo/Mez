@@ -57,31 +57,30 @@ type dataSet struct {
 	firstFrameRead gocv.Mat
 }
 
-func NewController(ipaddr, imPath string) *Controller {
+func NewController(ipaddr string) *Controller {
 	fKnobVals := []int{0, 234100, 254500, 271000, 281000,
 		0, 354000, 366000, 380000, 391300,
 		0, 475000, 501700, 512000, 523600,
 		0, 513000, 530000, 540000, 553500,
 		0, 218800, 225500, 232500, 237000,
 		0, 239500, 250000, 257000, 263000}
-	dukeSim := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/simple.csv",
-		imPath+"Mez_upload_woa/latcontroller/duke/simple_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
-	dukeMed := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/medium.csv",
-		imPath+"Mez_upload_woa/latcontroller/duke/medium_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/086667.png", fKnobVals[20:25])
-	dukeComp := newDataSet(imPath+"Mez_upload_woa/latcontroller/duke/complex.csv",
-		imPath+"Mez_upload_woa/latcontroller/duke/complex_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/duke/firstframes/071878.png", fKnobVals[25:30])
-	jaadSim := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/simple.csv",
-		imPath+"Mez_upload_woa/latcontroller/jaad/simple_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00110.png", fKnobVals[0:5])
-	jaadMed := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/medium.csv",
-		imPath+"Mez_upload_woa/latcontroller/jaad/medium_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00050.png", fKnobVals[5:10])
-	jaadComp := newDataSet(imPath+"Mez_upload_woa/latcontroller/jaad/complex.csv",
-		imPath+"Mez_upload_woa/latcontroller/jaad/complex_knobs.txt",
-		imPath+"Mez_upload_woa/latcontroller/jaad/firstframes/00230.png", fKnobVals[10:15])
+	dukeSim := newDataSet("../latcontroller/duke/simple.csv", "../latcontroller/duke/simple_knobs.txt",
+		"../latcontroller/duke/firstframes/093232.png", fKnobVals[15:20])
+	dukeMed := newDataSet("../latcontroller/duke/medium.csv",
+		"../latcontroller/duke/medium_knobs.txt",
+		"../latcontroller/duke/firstframes/086667.png", fKnobVals[20:25])
+	dukeComp := newDataSet("../latcontroller/duke/complex.csv",
+		"../latcontroller/duke/complex_knobs.txt",
+		"../latcontroller/duke/firstframes/071878.png", fKnobVals[25:30])
+	jaadSim := newDataSet("../latcontroller/jaad/simple.csv",
+		"../latcontroller/jaad/simple_knobs.txt",
+		"../latcontroller/jaad/firstframes/00110.png", fKnobVals[0:5])
+	jaadMed := newDataSet("../latcontroller/jaad/medium.csv",
+		"../latcontroller/jaad/medium_knobs.txt",
+		"../latcontroller/jaad/firstframes/00050.png", fKnobVals[5:10])
+	jaadComp := newDataSet("../latcontroller/jaad/complex.csv",
+		"../latcontroller/jaad/complex_knobs.txt",
+		"../latcontroller/jaad/firstframes/00230.png", fKnobVals[10:15])
 
 	return &Controller{
 		dukeSim:  dukeSim,
