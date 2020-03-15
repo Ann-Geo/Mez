@@ -30,9 +30,10 @@ type EdgeServerBroker struct {
 	appMutex        sync.Mutex
 	applicationPool map[string]string
 	actController   string
+	storePath       string
 }
 
-func NewEdgeServerBroker(sname, ipaddr, actController string) *EdgeServerBroker {
+func NewEdgeServerBroker(sname, ipaddr, actController, storePath string) *EdgeServerBroker {
 	return &EdgeServerBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -44,6 +45,7 @@ func NewEdgeServerBroker(sname, ipaddr, actController string) *EdgeServerBroker 
 		appMutex:        sync.Mutex{},
 		applicationPool: make(map[string]string),
 		actController:   actController,
+		storePath:       storePath,
 	}
 }
 

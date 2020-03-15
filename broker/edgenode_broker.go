@@ -34,11 +34,12 @@ type EdgeNodeBroker struct {
 	stopSubcription bool
 	applicationPool map[string]string
 	actController   string
+	storePath       string
 	cLat            chan string
 	c1              chan bool
 }
 
-func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
+func NewEdgeNodeBroker(sname, ipaddr, actController, storePath string) *EdgeNodeBroker {
 	return &EdgeNodeBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -47,6 +48,7 @@ func NewEdgeNodeBroker(sname, ipaddr, actController string) *EdgeNodeBroker {
 		stopSubcription: false,
 		applicationPool: make(map[string]string),
 		actController:   actController,
+		storePath:       storePath,
 		cLat:            make(chan string),
 		c1:              make(chan bool),
 	}

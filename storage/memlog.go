@@ -7,6 +7,7 @@ Each segment is protected by a read-write lock
 package storage
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -116,9 +117,9 @@ func (memlog *MemLog) Append(im Image, t Timestamp) error {
 				imseg: memlog.immemlog.imlog[row(pos)],
 				tseg:  memlog.tsmemlog.tslog[row(pos)],
 			}
-			//fmt.Println("memlog:before", time.Now())
+			fmt.Println("memlog:before", time.Now())
 			memlog.bchan <- b
-			//fmt.Println("memlog:after", time.Now())
+			fmt.Println("memlog:after", time.Now())
 		}
 	}
 

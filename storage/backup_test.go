@@ -19,14 +19,14 @@ func TestBackupSameSizeImage(t *testing.T) {
 		segSize         uint64
 		frameRate       int16
 	}{
-		{"../../test_images/200K/", 100, 5, 20, 200},
+		{"../../test_images/200K/", 100, 5, 20, 33},
 	}
 
 	for _, test := range tests {
 		//new memlog
 		memlog := NewMemLog(test.segSize, test.logSize)
 
-		go memlog.Backup("/home/research/goworkspace/src/github.com/Ann-Geo/store_img/")
+		go memlog.Backup("/home/research/goworkspace/src/github.com/Ann-Geo/store_enb/")
 
 		//Obtain filenames in the directory path given
 		errMsg, fileList := walkAllFilesInDir(test.imageFilesPath)

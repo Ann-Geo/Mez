@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Ann-Geo/Mez/storagepb"
 	"github.com/gogo/protobuf/proto"
@@ -55,7 +56,7 @@ func (memlog *MemLog) Backup(fPath string) {
 			log.Fatalln("cannot close backup file", err)
 		}
 
-		//fmt.Println("backup done", time.Now())
+		fmt.Println("backup done", time.Now())
 
 	}
 }
