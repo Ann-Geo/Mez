@@ -1,0 +1,8 @@
+syntax = "proto3";
+package storagepb;
+import "google/protobuf/timestamp.proto";
+
+message BFileItem {
+        bytes Img = 1;
+        google.protobuf.Timestamp Ts = 2;
+}
