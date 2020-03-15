@@ -45,6 +45,8 @@ type ImageMemLog struct {
 type MemLog struct {
 	tsmemlog *TimestampMemLog
 	immemlog *ImageMemLog
+	bchan    chan backupItem
+	bFlag    bool
 }
 
 // Constructors
@@ -56,7 +58,7 @@ func NewTimestampMemLog() *TimestampMemLog {
 		tsmemlog.tslog[i].ts = make([]Timestamp, SEGSIZE)
 		tsmemlog.tslog[i].lk = &sync.RWMutex{}
 	}
-	tsmemlog.currpos = 0 //SEGSIZE * LOGSIZE //Initially outside range
+	tsmemlog.currpos = SEGSIZE*LOGSIZE - 1 //Initially outside range
 	return &tsmemlog
 }
 
@@ -74,7 +76,9 @@ func NewMemLog(segsize, logsize uint64) *MemLog {
 	SEGSIZE = segsize
 	LOGSIZE = logsize
 	return &MemLog{tsmemlog: NewTimestampMemLog(),
-		immemlog: NewImageMemLog()}
+		immemlog: NewImageMemLog(),
+		bchan:    make(chan backupItem, LOGSIZE),
+		bFlag:    false}
 }
 
 // Store methods
@@ -89,6 +93,7 @@ func (memlog *MemLog) Append(im Image, t Timestamp) error {
 			return ErrTimestampOrder
 		}
 	}
+
 	if pos == SEGSIZE*LOGSIZE || pos == SEGSIZE*LOGSIZE-1 {
 		pos = 0
 	} else {
@@ -103,6 +108,19 @@ func (memlog *MemLog) Append(im Image, t Timestamp) error {
 
 	// Update currpos
 	atomic.StoreUint64(&memlog.tsmemlog.currpos, pos)
+
+	if memlog.bFlag == true {
+		if pos%SEGSIZE == SEGSIZE-1 {
+			b := backupItem{
+				pos:   pos,
+				imseg: memlog.immemlog.imlog[row(pos)],
+				tseg:  memlog.tsmemlog.tslog[row(pos)],
+			}
+			//fmt.Println("memlog:before", time.Now())
+			memlog.bchan <- b
+			//fmt.Println("memlog:after", time.Now())
+		}
+	}
 
 	return nil
 }

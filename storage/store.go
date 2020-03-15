@@ -13,4 +13,5 @@ type Store interface {
 	Append(im Image, t Timestamp) error
 	Read(imts chan<- ImageTimestamp, tstart, tstop Timestamp, err chan<- error)
 	AppendStats() (int, uint64, Timestamp)
+	Backup(fPath string)
 }
