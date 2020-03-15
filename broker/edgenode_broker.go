@@ -71,6 +71,11 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 	// Create default log storage
 	s.store[s.serverName] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
+	//start the back up process in the background if p flag is enabled
+	if s.storePath != "../../def_store/" {
+		go s.store[s.serverName].Backup(s.storePath)
+	}
+
 	// Register with edge server
 	err = s.regsterWithEdgeServer(edgeServerIpaddr, login, password)
 	if err != nil {

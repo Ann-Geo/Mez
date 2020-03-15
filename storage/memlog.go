@@ -14,7 +14,7 @@ import (
 )
 
 var SEGSIZE uint64 = 20
-var LOGSIZE uint64 = 50
+var LOGSIZE uint64 = 6
 
 type ImageTimestamp struct {
 	Im Image

@@ -23,6 +23,8 @@ func (memlog *MemLog) Backup(fPath string) {
 	var b backupItem
 	for {
 
+		fmt.Println("backup waiting")
+
 		//wait for backupItem from memlog Append
 		b = <-memlog.bchan
 		fmt.Println(b.pos)

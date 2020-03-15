@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -111,6 +112,13 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 
 	// Create storage for edge node at edgeserver
 	s.store[nodeinfo.Camid] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
+
+	//start the back up process in the background if p flag is enabled
+	if s.storePath != "../../def_store/" {
+		path := s.storePath + nodeinfo.Camid + "/"
+		createStoreDir(s.storePath + nodeinfo.Camid)
+		go s.store[nodeinfo.Camid].Backup(path)
+	}
 
 	//fmt.Println("registered")
 	return &edgeserver.Status{
@@ -438,4 +446,22 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 
 	}
 
+}
+
+func createStoreDir(dirName string) {
+	src, err := os.Stat(dirName)
+
+	if os.IsNotExist(err) {
+		errDir := os.Mkdir(dirName, 0755)
+		if errDir != nil {
+			panic(err)
+		}
+		return
+	}
+
+	if src.Mode().IsRegular() {
+		return
+	}
+
+	return
 }
