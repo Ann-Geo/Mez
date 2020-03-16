@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -35,11 +36,14 @@ type EdgeNodeBroker struct {
 	applicationPool map[string]string
 	actController   string
 	storePath       string
+	brokerRestart   string
 	cLat            chan string
 	c1              chan bool
+	recoveryAddr    string
 }
 
-func NewEdgeNodeBroker(sname, ipaddr, actController, storePath string) *EdgeNodeBroker {
+func NewEdgeNodeBroker(sname, ipaddr, actController, storePath, brokerRestart string) *EdgeNodeBroker {
+
 	return &EdgeNodeBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -49,8 +53,10 @@ func NewEdgeNodeBroker(sname, ipaddr, actController, storePath string) *EdgeNode
 		applicationPool: make(map[string]string),
 		actController:   actController,
 		storePath:       storePath,
+		brokerRestart:   brokerRestart,
 		cLat:            make(chan string),
 		c1:              make(chan bool),
+		recoveryAddr:    "esb.txt",
 	}
 }
 
@@ -71,8 +77,29 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 	// Create default log storage
 	s.store[s.serverName] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
+	//recovery process
+	if s.brokerRestart == "1" {
+		recoveryFile, err := os.Open(s.recoveryAddr)
+		if err != nil {
+			log.Fatalln("cannot open recovery file", err)
+		}
+
+		defer recoveryFile.Close()
+
+		recoveryFileInfo, err := recoveryFile.Stat()
+		if err != nil {
+			log.Fatalln("cannot Stat recovery file", err)
+		}
+		if recoveryFileInfo.Size() != 0 {
+
+			s.store[s.serverName].Recover(recoveryFile)
+
+		}
+	}
+
 	//start the back up process in the background if p flag is enabled
 	if s.storePath != "../../def_store/" {
+		//todo - copy path to recoveryFile
 		go s.store[s.serverName].Backup(s.storePath)
 	}
 

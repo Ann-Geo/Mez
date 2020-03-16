@@ -44,11 +44,14 @@ func (memlog *MemLog) Backup(fPath string) {
 			}
 
 			out, err := proto.Marshal(item)
+			fmt.Println([]byte(len(out)))
+
 			if err != nil {
 				log.Fatalln("cannot serialize log item to bytes", err)
 			}
 
-			if _, err := bFile.Write(out); err != nil {
+			_, err = bFile.Write(out)
+			if err != nil {
 				log.Fatalln("cannot write log item to file", err)
 			}
 
