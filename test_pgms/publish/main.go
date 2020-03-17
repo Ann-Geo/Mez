@@ -15,7 +15,7 @@ import (
 )
 
 var customTimeformat string = "Monday, 02-Jan-06 15:04:05.00000 MST"
-var imageFilesPath string = "/home/research/pythonwork/SEM_5/Knobs-redo/optimize_controller/jaad/simple/" //"../../images/"
+var imageFilesPath string = "/home/research/pythonwork/SEM_5/Knobs-redo/optimize_controller/jaad/simple/" //"/home/research/goworkspace/src/github.com/Ann-Geo/test_images_small"  //"../../images/"
 var frameRate uint64 = 200
 
 func main() {
@@ -60,7 +60,7 @@ func main() {
 		//}
 
 		imBuf := gocv.IMRead(file, gocv.IMReadColor)
-		buffer := imBuf.ToBytes()
+		buffer := append([]byte(nil), imBuf.ToBytes()...) //imBuf.ToBytes()
 
 		time.Sleep(time.Duration(frameRate) * time.Millisecond)
 		ts := time.Now().Format(customTimeformat)

@@ -56,7 +56,7 @@ func NewEdgeNodeBroker(sname, ipaddr, actController, storePath, brokerRestart st
 		brokerRestart:   brokerRestart,
 		cLat:            make(chan string),
 		c1:              make(chan bool),
-		recoveryAddr:    "esb.txt",
+		recoveryAddr:    "../broker/enb.txt",
 	}
 }
 

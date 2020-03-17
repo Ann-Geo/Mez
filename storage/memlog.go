@@ -7,14 +7,13 @@ Each segment is protected by a read-write lock
 package storage
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-var SEGSIZE uint64 = 20
-var LOGSIZE uint64 = 6
+var SEGSIZE uint64 = 10
+var LOGSIZE uint64 = 5
 
 type ImageTimestamp struct {
 	Im Image
@@ -117,9 +116,9 @@ func (memlog *MemLog) Append(im Image, t Timestamp) error {
 				imseg: memlog.immemlog.imlog[row(pos)],
 				tseg:  memlog.tsmemlog.tslog[row(pos)],
 			}
-			fmt.Println("memlog:before", time.Now())
+			//fmt.Println("memlog:before", time.Now())
 			memlog.bchan <- b
-			fmt.Println("memlog:after", time.Now())
+			//fmt.Println("memlog:after", time.Now())
 		}
 	}
 

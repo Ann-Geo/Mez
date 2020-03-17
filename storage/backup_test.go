@@ -1,16 +1,17 @@
 package storage
 
 import (
-	"io/ioutil"
 	"testing"
 	"time"
+
+	"gocv.io/x/gocv"
 )
 
 func TestBackupSameSizeImage(t *testing.T) {
 
 	var (
 		imBuf []byte
-		err   error
+		//err   error
 	)
 	var tests = []struct {
 		imageFilesPath  string
@@ -19,7 +20,7 @@ func TestBackupSameSizeImage(t *testing.T) {
 		segSize         uint64
 		frameRate       int16
 	}{
-		{"../../test_images/200K/", 100, 5, 20, 33},
+		{"../../test_images/500K/", 100, 5, 10, 200},
 	}
 
 	for _, test := range tests {
@@ -35,11 +36,14 @@ func TestBackupSameSizeImage(t *testing.T) {
 		}
 
 		//read first file to buffer (conversion to bytes)
-		imBuf, err = ioutil.ReadFile(fileList[0])
+		/*imBuf, err = ioutil.ReadFile(fileList[0])
 		if err != nil {
 			t.Fatalf("Cannot read image file %v\n", err)
 
-		}
+		}*/
+
+		buffer := gocv.IMRead(fileList[0], gocv.IMReadColor)
+		imBuf = buffer.ToBytes()
 
 		//slices to store timestamps and image sizes appended
 		tsAppended := make([]time.Time, 0)

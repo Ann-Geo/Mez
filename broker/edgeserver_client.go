@@ -52,7 +52,7 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 	for {
 
 		im, err := stream.Recv()
-		fmt.Println("tsreceived ----", time.Now())
+		//fmt.Println("tsreceived ----", time.Now())
 		if err == io.EOF {
 
 			//fmt.Println("reached end of file")
@@ -72,7 +72,7 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 		}
 		//trecvd := time.Now()
 
-		log.Printf("EdgeServerClient: Number of images received ---- %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
+		//log.Printf("EdgeServerClient: Number of images received ---- %d, of size %d time %s", numImagesRecvd, len(im.Image), ts)
 
 		s.mutex.Lock()
 
