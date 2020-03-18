@@ -21,8 +21,9 @@ func TestRecoverSameSizeImage(t *testing.T) {
 		segSize         uint64
 		frameRate       int16
 		recoveryAddr    string
+		camid           string
 	}{
-		{"../../test_images/10K/", 100, 5, 10, 200, "../broker/enb.txt"},
+		{"../../test_images/10K/", 100, 5, 10, 200, "../broker/enb.txt", "nil"},
 	}
 
 	for _, test := range tests {
@@ -92,7 +93,7 @@ func TestRecoverSameSizeImage(t *testing.T) {
 			log.Fatalln("cannot open recovery file", err)
 		}
 
-		memlog.Recover(recoveryFile)
+		memlog.Recover(recoveryFile, test.camid)
 
 		/*errMsg, status := sliceEquality(tsAppended, tsRead, imSizeAppended, imSizeRead)
 		if !(status) {

@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -32,9 +33,12 @@ type EdgeServerBroker struct {
 	applicationPool map[string]string
 	actController   string
 	storePath       string
+	recoveryAddr    string
+	recoveryFile    *os.File
+	brokerRestart   string
 }
 
-func NewEdgeServerBroker(sname, ipaddr, actController, storePath string) *EdgeServerBroker {
+func NewEdgeServerBroker(sname, ipaddr, actController, storePath, brokerRestart string) *EdgeServerBroker {
 	return &EdgeServerBroker{
 		serverName:      sname,
 		ipaddr:          ipaddr,
@@ -47,6 +51,8 @@ func NewEdgeServerBroker(sname, ipaddr, actController, storePath string) *EdgeSe
 		applicationPool: make(map[string]string),
 		actController:   actController,
 		storePath:       storePath,
+		brokerRestart:   brokerRestart,
+		recoveryAddr:    "../broker/esb.txt",
 	}
 }
 
@@ -113,10 +119,34 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 	// Create storage for edge node at edgeserver
 	s.store[nodeinfo.Camid] = storage.NewMemLog(storage.SEGSIZE, storage.LOGSIZE)
 
+	//recovery process
+	if s.brokerRestart == "1" {
+		recoveryFile, err := os.Open(s.recoveryAddr)
+		if err != nil {
+			log.Fatalln("cannot open recovery file", err)
+		}
+		s.recoveryFile = recoveryFile
+
+		defer s.recoveryFile.Close()
+
+		recoveryFileInfo, err := s.recoveryFile.Stat()
+		if err != nil {
+			log.Fatalln("cannot Stat recovery file", err)
+		}
+		if recoveryFileInfo.Size() != 0 {
+
+			s.store[nodeinfo.Camid].Recover(s.recoveryFile, nodeinfo.Camid)
+
+		}
+	}
+
 	//start the back up process in the background if p flag is enabled
 	if s.storePath != "../../def_store/" {
 		path := s.storePath + nodeinfo.Camid + "/"
 		createStoreDir(s.storePath + nodeinfo.Camid)
+
+		s.upDateRecoveryFile(nodeinfo.Camid, path)
+
 		go s.store[nodeinfo.Camid].Backup(path)
 	}
 
@@ -464,4 +494,33 @@ func createStoreDir(dirName string) {
 	}
 
 	return
+}
+
+func (s *EdgeServerBroker) upDateRecoveryFile(camid, path string) {
+
+	flag := 0
+	input, err := ioutil.ReadFile(s.recoveryAddr)
+	if err != nil {
+		log.Fatalln("cannot read recovery file", err)
+	}
+
+	lines := strings.Split(string(input), "\n")
+
+	for i, line := range lines {
+		if strings.Contains(line, camid) {
+			lines[i] = path
+			flag = 1
+			break
+		}
+	}
+
+	if flag == 0 {
+		lines = append(lines, path)
+	}
+
+	output := strings.Join(lines, "\n")
+	err = ioutil.WriteFile(s.recoveryAddr, []byte(output), 0644)
+	if err != nil {
+		log.Fatalln("cannot write new back up path to recovery file", err)
+	}
 }

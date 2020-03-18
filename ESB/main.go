@@ -25,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	//es broker ip address
-	esb := broker.NewEdgeServerBroker("EdgeServer", "127.0.0.1:20000", *broker.ActController, *broker.StorePath)
+	esb := broker.NewEdgeServerBroker("EdgeServer", "127.0.0.1:20000", *broker.ActController, *broker.StorePath, *broker.BrokerRestart)
 	fmt.Println(*broker.ActController)
 	fmt.Println(*broker.StorePath)
 	go esb.StartEdgeServerBroker()

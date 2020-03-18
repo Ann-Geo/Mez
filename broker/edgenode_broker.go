@@ -40,6 +40,7 @@ type EdgeNodeBroker struct {
 	cLat            chan string
 	c1              chan bool
 	recoveryAddr    string
+	recoveryFile    *os.File
 }
 
 func NewEdgeNodeBroker(sname, ipaddr, actController, storePath, brokerRestart string) *EdgeNodeBroker {
@@ -83,23 +84,37 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		if err != nil {
 			log.Fatalln("cannot open recovery file", err)
 		}
+		s.recoveryFile = recoveryFile
 
-		defer recoveryFile.Close()
+		defer s.recoveryFile.Close()
 
-		recoveryFileInfo, err := recoveryFile.Stat()
+		recoveryFileInfo, err := s.recoveryFile.Stat()
 		if err != nil {
 			log.Fatalln("cannot Stat recovery file", err)
 		}
 		if recoveryFileInfo.Size() != 0 {
 
-			s.store[s.serverName].Recover(recoveryFile)
+			s.store[s.serverName].Recover(s.recoveryFile, "nil")
 
 		}
 	}
 
 	//start the back up process in the background if p flag is enabled
 	if s.storePath != "../../def_store/" {
-		//todo - copy path to recoveryFile
+		//copy path to recoveryFile
+		err := os.Remove(s.recoveryAddr)
+		if err != nil {
+			log.Fatalf("cannot delete recovery file: %s\n", err)
+		}
+		recoveryFile, err := os.Create(s.recoveryAddr)
+		if err != nil {
+			log.Fatalf("Cannot create recovery file %v\n", err)
+		}
+
+		s.recoveryFile = recoveryFile
+
+		defer s.recoveryFile.Close()
+		fmt.Fprintf(s.recoveryFile, "%s\n", s.storePath)
 		go s.store[s.serverName].Backup(s.storePath)
 	}
 
