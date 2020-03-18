@@ -23,9 +23,5 @@ test_pgms: Example publisher and subscriber applications
 
 
 
-Quick start
-
-
-
 
 
