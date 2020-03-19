@@ -28,6 +28,7 @@ Quick start
 - Run Edge node broker (ENB), go run ENB/main.go
 - Run Subscriber, go run test_pgms/subscribe_c/main.go
 - Run publisher, go run test_pgms/publish/main.go
+- In case controller flag is enabled (details given below), run the controller, go run Controller/main.go
 
 Flags
 - -c => to enable control action (makes sense only if ESB and ENB are deployed on two separate physical nodes and communicate through WiFi)
