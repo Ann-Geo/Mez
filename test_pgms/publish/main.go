@@ -72,7 +72,17 @@ func main() {
 			if err == io.EOF {
 				break
 			}
-			log.Fatalln(err)
+			numIter := 5
+			for n := 0; n < numIter; n++ {
+				time.Sleep(1 * time.Millisecond)
+				if err == nil {
+					break
+				}
+			}
+			if err != nil {
+				log.Fatalln("connection timeout: could not reach Edge node broker", err)
+			}
+
 		}
 
 	}

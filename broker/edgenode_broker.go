@@ -308,8 +308,16 @@ func (s *EdgeNodeBroker) Subscribe(imPars *edgenode.ImageStreamParameters, strea
 				}
 				//fmt.Println("received from cont", time.Now())
 				if err != nil {
-					log.Fatalf("Error while receiving: %v\n", err)
-					break
+					numIter := 5
+					for n := 0; n < numIter; n++ {
+						time.Sleep(20 * time.Millisecond)
+						if err == nil {
+							break
+						}
+					}
+					if err != nil {
+						log.Fatalln("connection timeout: could not reach controller", err)
+					}
 				}
 
 				//save the images to the log

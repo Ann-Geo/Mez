@@ -62,7 +62,17 @@ func main() {
 			break
 		}
 		if err != nil {
-			log.Fatalln("error while receiving stream from Subscribe")
+			//log.Fatalln("error while receiving stream from Subscribe")
+			numIter := 5
+			for n := 0; n < numIter; n++ {
+				time.Sleep(150 * time.Millisecond)
+				if err == nil {
+					break
+				}
+			}
+			if err != nil {
+				log.Fatalln("connection timeout: could not reach Edge server broker", err)
+			}
 		}
 
 		log.Printf("Image of size %d received with timestamp %s", len(im.GetImage()), im.GetTimestamp())

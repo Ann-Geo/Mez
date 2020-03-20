@@ -59,8 +59,19 @@ func (cc *EdgeServerClient) SubscribeImage(s *EdgeServerBroker, client edgenode.
 			break
 		}
 		//break in channel, time out
+		numIter := 5
 		if err != nil {
-			return fmt.Errorf("Edgeserver client: failed to receive image via stream from edge node %v", err)
+
+			for n := 0; n < numIter; n++ {
+				time.Sleep(100 * time.Millisecond)
+				if err == nil {
+					break
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("Edgeserver client: failed to receive video frames from edge node %v", err)
+			}
+
 		}
 
 		// Store image and timestamp got from edgenode

@@ -63,6 +63,19 @@ func (pc *ProducerClient) Connect(url, userAddress string) error {
 	return nil
 }
 
+func (pc *ProducerClient) Retry(url, userAddress string, numRetries int) (err error) {
+
+	for i := 0; i < numRetries; i++ {
+		err = pc.Connect(url, userAddress)
+		if err == nil {
+
+			return nil
+		}
+
+	}
+	return err
+}
+
 func (pc *ProducerClient) PublishImage(client edgenode.PubSubClient) error {
 	// Client side streaming
 	var (

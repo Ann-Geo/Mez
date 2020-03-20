@@ -60,6 +60,19 @@ func (cc *ConsumerClient) Connect(url, userAddress string) error {
 	return nil
 }
 
+func (cc *ConsumerClient) Retry(url, userAddress string, numRetries int) (err error) {
+
+	for i := 0; i < numRetries; i++ {
+		err = cc.Connect(url, userAddress)
+		if err == nil {
+
+			return nil
+		}
+
+	}
+	return err
+}
+
 func (cc *ConsumerClient) SubscribeImage(client edgeserver.PubSubClient, tbegin time.Time) error {
 	// Server side streaming
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

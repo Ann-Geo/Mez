@@ -7,7 +7,7 @@ Mez is a publish subscribe messaging system intended to serve computer vision ap
 
 
 Prerequisites
-1. Golang, protocol buffers ans grpc 
+1. Golang, protocol buffers and grpc 
 2. PTP synchronization protocol
 3. OpenCv library for Golang - gocv
 
