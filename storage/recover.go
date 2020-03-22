@@ -38,12 +38,14 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 
 		}
 
-		//Obtain filenames in the recovery path given
+		//Obtain filenames in the recovery path
 		fileList, err := ioutil.ReadDir(recoveryPath)
 		if err != nil {
 			log.Fatalln("File read failed", err)
 		}
 
+		//sort file names based on modified time
+		//- to get the most recently written images
 		sort.Slice(fileList, func(i, j int) bool {
 			return fileList[i].ModTime().Unix() > fileList[j].ModTime().Unix()
 		})
@@ -52,9 +54,11 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 			fmt.Println(f.Name())
 		}
 
+		//starting from last file - most recently written
 		var i int = len(fileList) - 1
 		for i > 0 {
 
+			//get data from the backup file
 			b, e := ioutil.ReadFile(recoveryPath + fileList[i].Name())
 			fmt.Println(recoveryPath + fileList[i].Name())
 			if e != nil {
@@ -63,11 +67,14 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 
 			pb := &storagepb.BFileItem{}
 
+			//json decode data read to pb
 			dec := json.NewDecoder(bytes.NewReader(b))
 			var im []byte
 			var t time.Time
 			var imByteSlice [][]byte
 			var tsByteSlice []time.Time
+
+			//get images and timestamps to imByteSlice and tsByteSlice
 			for {
 				if err := dec.Decode(pb); err == io.EOF {
 					break
@@ -81,21 +88,28 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 				tsByteSlice = append(tsByteSlice, t)
 			}
 
+			//comparing crc and discarding partially written segment files
+			//calculate crc of last image read
 			crcVal := crc32.ChecksumIEEE(im)
 			fmt.Println("crc calculated", crcVal)
+
+			//open crc file written during backup
 			crcFile, err := os.Open(recoveryPath + fileList[i-1].Name())
 			if err != nil {
 				log.Fatalln("CRC File reading error", err)
 			}
 
 			var crcRead uint32
-			for {
 
+			//read the crc written in crc file during backup
+			for {
 				_, _ = fmt.Fscanf(crcFile, "%d\n", &crcRead)
 				fmt.Println("crc Read", crcRead)
 				break
 			}
 
+			//if crc calcultaed and crc written are same recover the
+			//segment file to memlog
 			if crcVal == crcRead {
 				fmt.Println("yes")
 				var j int

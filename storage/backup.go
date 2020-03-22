@@ -25,17 +25,19 @@ func (memlog *MemLog) Backup(fPath string) {
 
 		//wait for backupItem from memlog Append
 		b = <-memlog.bchan
+
 		//create backupfile
 		fname := fPath + strconv.FormatUint(b.pos, 10) + ".json"
 		fmt.Println(fname)
 
 		var _, err = os.Stat(fname)
 
-		// create file if not exists
+		//if file exists remove old file
 		if !os.IsNotExist(err) {
 			_ = os.Remove(fname)
 		}
 
+		//create and open backup file
 		bFile, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatalln("cannot create backup file", err)
@@ -44,6 +46,10 @@ func (memlog *MemLog) Backup(fPath string) {
 		fmt.Println(len(b.tseg.ts))
 
 		var i int
+
+		//get each image and timestamp
+		//pack into item after marshalling
+		//write json item to back up file
 		for i = 0; i < len(b.tseg.ts); i++ {
 
 			tproto, _ := ptypes.TimestampProto(b.tseg.ts[i])
@@ -65,19 +71,21 @@ func (memlog *MemLog) Backup(fPath string) {
 		}
 
 		//crc calculation and persisting crc to a afile
+		//calculate crc of last image written in a segment
 		crcVal := crc32.ChecksumIEEE(b.imseg.im[i-1])
 
-		//create crc backupfile
+		//create crc backupfile for a segment
 		cname := fPath + "crc" + strconv.FormatUint(b.pos, 10) + ".txt"
 		fmt.Println(cname)
 
 		_, err = os.Stat(cname)
 
-		// create file if not exists
+		//if file already exists remove it
 		if !os.IsNotExist(err) {
 			_ = os.Remove(cname)
 		}
 
+		//create and open crc file
 		cFile, err := os.OpenFile(cname, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatalln("cannot create crc file", err)

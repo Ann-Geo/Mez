@@ -63,7 +63,6 @@ func NewEdgeNodeBroker(sname, ipaddr, actController, storePath, brokerRestart st
 
 func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password string) error {
 
-	log.Println("Starting edge node broker", s.serverName)
 	lis, err := net.Listen("tcp", s.ipaddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
@@ -80,6 +79,8 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 	//recovery process
 	if s.brokerRestart == "1" {
+
+		//open recovery file
 		recoveryFile, err := os.Open(s.recoveryAddr)
 		if err != nil {
 			log.Fatalln("cannot open recovery file", err)
@@ -88,10 +89,13 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 		defer s.recoveryFile.Close()
 
+		//get recovery file info
 		recoveryFileInfo, err := s.recoveryFile.Stat()
 		if err != nil {
 			log.Fatalln("cannot Stat recovery file", err)
 		}
+
+		//check if a recovery path is written in recoveryfile
 		if recoveryFileInfo.Size() != 0 {
 
 			s.store[s.serverName].Recover(s.recoveryFile, "nil")
@@ -101,11 +105,14 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 	//start the back up process in the background if p flag is enabled
 	if s.storePath != "../../def_store/" {
-		//copy path to recoveryFile
+
+		//remove existing recovery file
 		err := os.Remove(s.recoveryAddr)
 		if err != nil {
 			log.Fatalf("cannot delete recovery file: %s\n", err)
 		}
+
+		//create new recovery file
 		recoveryFile, err := os.Create(s.recoveryAddr)
 		if err != nil {
 			log.Fatalf("Cannot create recovery file %v\n", err)
@@ -114,7 +121,11 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 		s.recoveryFile = recoveryFile
 
 		defer s.recoveryFile.Close()
+
+		//copy path to recoveryFile
 		fmt.Fprintf(s.recoveryFile, "%s\n", s.storePath)
+
+		//start back up process
 		go s.store[s.serverName].Backup(s.storePath)
 	}
 
@@ -129,6 +140,7 @@ func (s *EdgeNodeBroker) StartEdgeNodeBroker(edgeServerIpaddr, login, password s
 
 	grpcServer := grpc.NewServer(opts...)
 	// Attach client API to broker
+	log.Println("Starting edge node broker", s.serverName)
 	edgenode.RegisterPubSubServer(grpcServer, s)
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("failed to serve: %s", err)

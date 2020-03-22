@@ -121,6 +121,8 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 
 	//recovery process
 	if s.brokerRestart == "1" {
+
+		//open recovery file
 		recoveryFile, err := os.Open(s.recoveryAddr)
 		if err != nil {
 			log.Fatalln("cannot open recovery file", err)
@@ -129,10 +131,13 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 
 		defer s.recoveryFile.Close()
 
+		//get recovery file info
 		recoveryFileInfo, err := s.recoveryFile.Stat()
 		if err != nil {
 			log.Fatalln("cannot Stat recovery file", err)
 		}
+
+		//check if a recovery path is written to recovery file
 		if recoveryFileInfo.Size() != 0 {
 
 			s.store[nodeinfo.Camid].Recover(s.recoveryFile, nodeinfo.Camid)
@@ -142,11 +147,16 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 
 	//start the back up process in the background if p flag is enabled
 	if s.storePath != "../../def_store/" {
+
+		//create storage path
 		path := s.storePath + nodeinfo.Camid + "/"
+		//create storage directory
 		createStoreDir(s.storePath + nodeinfo.Camid)
 
+		//update recovery file with new storage path
 		s.upDateRecoveryFile(nodeinfo.Camid, path)
 
+		//start backup process
 		go s.store[nodeinfo.Camid].Backup(path)
 	}
 
@@ -408,6 +418,7 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 
 }
 
+//create a storage directory for given camera id
 func createStoreDir(dirName string) {
 	src, err := os.Stat(dirName)
 
@@ -426,6 +437,7 @@ func createStoreDir(dirName string) {
 	return
 }
 
+//update recovery file with new storage path
 func (s *EdgeServerBroker) upDateRecoveryFile(camid, path string) {
 
 	flag := 0
