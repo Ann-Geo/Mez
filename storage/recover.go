@@ -5,12 +5,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Ann-Geo/Mez/storagepb"
 	"github.com/golang/protobuf/ptypes"
@@ -44,36 +46,78 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 		}
 
 		sort.Slice(fileList, func(i, j int) bool {
-			return fileList[i].ModTime().Unix() < fileList[j].ModTime().Unix()
+			return fileList[i].ModTime().Unix() > fileList[j].ModTime().Unix()
 		})
 
-		fmt.Println(fileList)
+		for _, f := range fileList {
+			fmt.Println(f.Name())
+		}
 
-		for _, file := range fileList {
+		var i int = len(fileList) - 1
+		for i > 0 {
 
-			b, e := ioutil.ReadFile(recoveryPath + file.Name())
-			fmt.Println(recoveryPath + file.Name())
+			b, e := ioutil.ReadFile(recoveryPath + fileList[i].Name())
+			fmt.Println(recoveryPath + fileList[i].Name())
 			if e != nil {
-				panic(e)
+				log.Fatalln("cannot read backup file", e)
 			}
 
 			pb := &storagepb.BFileItem{}
 
 			dec := json.NewDecoder(bytes.NewReader(b))
+			var im []byte
+			var t time.Time
+			var imByteSlice [][]byte
+			var tsByteSlice []time.Time
 			for {
-
 				if err := dec.Decode(pb); err == io.EOF {
 					break
 				} else if err != nil {
-					log.Fatal(err)
+					log.Fatalln("json data read error", err)
 				}
-				im := pb.GetImg()
+				im = append([]byte(nil), pb.GetImg()...)
 				ts := pb.GetTs()
-
-				t, _ := ptypes.Timestamp(ts)
-				memlog.Append(im, t)
-				//fmt.Println(memlog.tsmemlog.tslog)
+				t, _ = ptypes.Timestamp(ts)
+				imByteSlice = append(imByteSlice, im)
+				tsByteSlice = append(tsByteSlice, t)
 			}
+
+			crcVal := crc32.ChecksumIEEE(im)
+			fmt.Println("crc calculated", crcVal)
+			crcFile, err := os.Open(recoveryPath + fileList[i-1].Name())
+			if err != nil {
+				log.Fatalln("CRC File reading error", err)
+			}
+
+			var crcRead uint32
+			for {
+
+				_, _ = fmt.Fscanf(crcFile, "%d\n", &crcRead)
+				fmt.Println("crc Read", crcRead)
+
+				/*if err != nil {
+
+					if err == io.EOF {
+						break // stop reading the file
+					}
+					log.Fatalln("cannot read crc", err)
+
+				}*/
+				break
+			}
+
+			if crcVal == crcRead {
+				fmt.Println("yes")
+				var j int
+				for j < len(imByteSlice) {
+
+					memlog.Append(imByteSlice[j], tsByteSlice[j])
+					//fmt.Println(memlog.tsmemlog.tslog)
+					j = j + 1
+				}
+			}
+
+			i = i - 2
 
 		}
 

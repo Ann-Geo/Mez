@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"os"
 	"strconv"
@@ -46,7 +47,8 @@ func (memlog *MemLog) Backup(fPath string) {
 
 		fmt.Println(len(b.tseg.ts))
 
-		for i := 0; i < len(b.tseg.ts); i++ {
+		var i int
+		for i = 0; i < len(b.tseg.ts); i++ {
 
 			tproto, _ := ptypes.TimestampProto(b.tseg.ts[i])
 			item := &storagepb.BFileItem{
@@ -72,6 +74,27 @@ func (memlog *MemLog) Backup(fPath string) {
 			}
 
 		}
+
+		//crc calculation and persisting crc to a afile
+		crcVal := crc32.ChecksumIEEE(b.imseg.im[i-1])
+
+		//create crc backupfile
+		cname := fPath + "crc" + strconv.FormatUint(b.pos, 10) + ".txt"
+		fmt.Println(cname)
+
+		_, err = os.Stat(cname)
+
+		// create file if not exists
+		if !os.IsNotExist(err) {
+			_ = os.Remove(cname)
+		}
+
+		cFile, err := os.OpenFile(cname, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalln("cannot create crc file", err)
+		}
+
+		fmt.Fprintf(cFile, "%d\n", crcVal)
 
 		if err := bFile.Close(); err != nil {
 			log.Fatalln("cannot close backup file", err)
