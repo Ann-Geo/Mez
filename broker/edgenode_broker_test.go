@@ -209,92 +209,75 @@ func TestPublishSubscribeConcurrent(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		//publishErrMsg := "publish success"
-		//subErrMsg := "subscribe success"
+
 		tStart := time.Now()
 		tStartFmtd := tStart.Format(customTimeformat)
 
 		go runProducerClientTestConcurrent(test.imageFilesPath, test.numImagesInsert, test.frameRate, test.imSizeParam)
-		/*
-			if publishErrMsg != "publish success" {
-				t.Fatalf("Publish failed - %v\n", publishErrMsg)
-			}
-		*/
+
 		time.Sleep(100 * time.Millisecond)
 		tStop := tStart.Add(time.Millisecond * 17000)
 		tStopFmtd := tStop.Format(customTimeformat)
 		latency := "100"
 		accuracy := "1"
 		camid := "cam1"
-		fmt.Println("tStart --", tStartFmtd)
-		fmt.Println("tStop --", tStopFmtd)
 
 		go runConsumerClientTestConcurrent(camid, latency, accuracy, tStartFmtd, tStopFmtd)
-		/*
-			if subErrMsg != "subscribe success" {
-				t.Fatalf("Subscribe failed - %v\n", subErrMsg)
-			}
-		*/
+
 		time.Sleep(20 * time.Second)
 	}
 
 }
 
 func runProducerClientTestConcurrent(imageFilesPath string, numImagesInsert, frameRate uint64, imSizeParam string) {
-	//var tsPublished []string
-	//var imSizePublished []int
-	//var numPublished uint64
+
 	publishErrMsg := "publish success"
 	producer := client.NewProducerClient("prodClient", "edge")
 
 	creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
 	if err != nil {
-		//return "could not load tls cert - producer", tsPublished, imSizePublished, numPublished
+
 		publishErrMsg = "could not load tls cert - producer"
-		//return publishErrMsg
+
 	}
 
 	// Connect test client with edge node broker
 	connProdClient, err := grpc.Dial("127.0.0.1:10000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&producer.Auth))
 	if err != nil {
-		//return "producer client could not connect with EN broker", tsPublished, imSizePublished, numPublished
+
 		publishErrMsg = "producer client could not connect with EN broker"
 	}
 	defer connProdClient.Close()
 	cl := edgenode.NewPubSubClient(connProdClient)
-	//publishErrMsg, tsPublished, imSizePublished, numPublished =
+
 	producer.PublishImageTestConcurrent(cl, imageFilesPath, numImagesInsert, frameRate, imSizeParam)
 
 	fmt.Println(publishErrMsg)
-
-	//return publishErrMsg, tsPublished, imSizePublished, numPublished
 
 }
 
 func runConsumerClientTestConcurrent(camid, latency, accuracy string, tStart, tStop string) {
 	subErrMsg := "subscribe success"
-	//tsSubscribed := make([]string, 0)
-	//imSizeSubscribed := make([]int, 0)
-	//var numImagesRecvd uint64
+
 	consumer := client.NewConsumerClient("consClient", "edge") //user name password
 
 	creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
 	if err != nil {
-		//return "could not load tls cert - consumer", tsSubscribed, imSizeSubscribed, numImagesRecvd
+
 		subErrMsg = "could not load tls cert - consumer"
 	}
 
 	// Connect consumer application with edge server broker
 	connConsClient, err := grpc.Dial("127.0.0.1:10000", grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&consumer.Auth))
 	if err != nil {
-		//return "consumer client could not connect with EN broker", tsSubscribed, imSizeSubscribed, numImagesRecvd
+
 		subErrMsg = "consumer client could not connect with EN broker"
 	}
 	defer connConsClient.Close()
 	cl := edgenode.NewPubSubClient(connConsClient)
-	//subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd =
+
 	consumer.SubscribeImageTestConcurrent(cl, camid, latency, accuracy, tStart, tStop) // Test Subscribe API
-	//return subErrMsg, tsSubscribed, imSizeSubscribed, numImagesRecvd
+
 	fmt.Println(subErrMsg)
 
 }

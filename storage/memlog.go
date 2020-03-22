@@ -116,9 +116,8 @@ func (memlog *MemLog) Append(im Image, t Timestamp) error {
 				imseg: memlog.immemlog.imlog[row(pos)],
 				tseg:  memlog.tsmemlog.tslog[row(pos)],
 			}
-			//fmt.Println("memlog:before", time.Now())
+
 			memlog.bchan <- b
-			//fmt.Println("memlog:after", time.Now())
 		}
 	}
 
@@ -134,13 +133,9 @@ func (memlog *MemLog) Read(imts chan<- ImageTimestamp, tstart, tstop Timestamp, 
 	}
 
 	currpos := atomic.LoadUint64(&memlog.tsmemlog.currpos)
-	//fmt.Println("currpos", currpos)
 	memlog.tsmemlog.tslog[row(currpos)].lk.RLock()
 	tcurr := memlog.tsmemlog.tslog[row(currpos)].ts[col(currpos)]
 	memlog.tsmemlog.tslog[row(currpos)].lk.RUnlock()
-
-	//fmt.Println("tstart ---", tstart)
-	//fmt.Println("tcurr ----", tcurr)
 
 	if tstart.After(tcurr) { // No entries yet
 		err <- ErrTimestampMissing

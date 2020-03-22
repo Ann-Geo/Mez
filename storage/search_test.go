@@ -58,7 +58,6 @@ func TestBinarySearch(t *testing.T) {
 		pos, _ := binarySearch(tsmemlog, 0, LOGSIZE*SEGSIZE-1, query)
 		tres := tsmemlog.tslog[row(pos)].ts[col(pos)]
 		if !tres.Before(tres.Add(2*time.Second)) || !(tres.After(tres.Add(-2 * time.Second))) {
-			//t.Errorf("Error: Incorrect bounds for inexact search -  query %v, tl %v, th %v", query, tres)
 			t.Errorf("Error: Incorrect bounds for inexact search -  query %v, th %v", query, tres)
 		}
 	}()

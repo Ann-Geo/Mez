@@ -52,15 +52,8 @@ func main() {
 	for _, file := range files {
 		fmt.Println(file)
 
-		//imBuf, err := ioutil.ReadFile(file)
-		//fmt.Printf("%T\n", imBuf)
-		//if err != nil {
-		//log.Fatalf("cannot read file")
-
-		//}
-
 		imBuf := gocv.IMRead(file, gocv.IMReadColor)
-		buffer := append([]byte(nil), imBuf.ToBytes()...) //imBuf.ToBytes()
+		buffer := append([]byte(nil), imBuf.ToBytes()...)
 
 		time.Sleep(time.Duration(frameRate) * time.Millisecond)
 		ts := time.Now().Format(customTimeformat)

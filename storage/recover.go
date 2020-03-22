@@ -39,7 +39,6 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 		}
 
 		//Obtain filenames in the recovery path given
-		//errMsg, fileList := walkFilesInDir(recoveryPath)
 		fileList, err := ioutil.ReadDir(recoveryPath)
 		if err != nil {
 			log.Fatalln("File read failed", err)
@@ -94,15 +93,6 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 
 				_, _ = fmt.Fscanf(crcFile, "%d\n", &crcRead)
 				fmt.Println("crc Read", crcRead)
-
-				/*if err != nil {
-
-					if err == io.EOF {
-						break // stop reading the file
-					}
-					log.Fatalln("cannot read crc", err)
-
-				}*/
 				break
 			}
 
@@ -112,7 +102,6 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 				for j < len(imByteSlice) {
 
 					memlog.Append(imByteSlice[j], tsByteSlice[j])
-					//fmt.Println(memlog.tsmemlog.tslog)
 					j = j + 1
 				}
 			}
@@ -124,23 +113,3 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 	}
 
 }
-
-/*
-func walkFilesInDir(dir string) (string, []string) {
-	var errMsg string = "file read success"
-	fileList := make([]string, 0)
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			errMsg = "Incorrect file path"
-		}
-
-		// check if it is a regular file (not dir)
-		if info.Mode().IsRegular() {
-			fileList = append(fileList, path)
-
-		}
-		return nil
-	})
-
-	return errMsg, fileList
-}*/

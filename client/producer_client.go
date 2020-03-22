@@ -266,7 +266,6 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 	stream, err := client.Publish(ctx)
 	if err != nil {
 
-		//return "error while invoking Publish", tsPublished, imSizePublished, numSend
 		publishErrMsg = "error while invoking Publish"
 
 	}
@@ -275,7 +274,7 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 	// Read image file names
 	errMsg, files := walkAllFilesInDir(imageFilesPath)
 	if errMsg != "file read success" {
-		//return "File read failed", tsPublished, imSizePublished, numSend
+
 		publishErrMsg = "File read failed"
 
 	}
@@ -289,7 +288,7 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 			//read first file to buffer (conversion to bytes)
 			imBuf, err = ioutil.ReadFile(files[0])
 			if err != nil {
-				//return "Cannot read image file", tsPublished, imSizePublished, numSend
+
 				publishErrMsg = "Cannot read image file"
 
 			}
@@ -306,7 +305,7 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 				if err == io.EOF {
 					break
 				}
-				//return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+
 				publishErrMsg = "failed to send chunk via stream"
 			}
 			imSizePublished = append(imSizePublished, len(imBuf))
@@ -320,7 +319,7 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 			}
 			imBuf, err = ioutil.ReadFile(file)
 			if err != nil {
-				//return "Cannot read image file", tsPublished, imSizePublished, numSend
+
 				publishErrMsg = "Cannot read image file"
 
 			}
@@ -337,7 +336,7 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 				if err == io.EOF {
 					break
 				}
-				//return "failed to send chunk via stream", tsPublished, imSizePublished, numSend
+
 				publishErrMsg = "failed to send chunk via stream"
 			}
 			imSizePublished = append(imSizePublished, len(imBuf))
@@ -347,11 +346,10 @@ func (pc *ProducerClient) PublishImageTestConcurrent(client edgenode.PubSubClien
 
 	_, err = stream.CloseAndRecv()
 	if err != nil {
-		//return "stream CloseAndRecv() error", tsPublished, imSizePublished, numSend
+
 		publishErrMsg = "stream CloseAndRecv() error"
 	}
 
-	//return "publish success", tsPublished, imSizePublished, numSend
 	fmt.Println(publishErrMsg)
 
 }

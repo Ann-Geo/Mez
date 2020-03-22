@@ -169,7 +169,6 @@ func (cc *ConsumerClient) SubscribeImageTestConcurrent(client edgenode.PubSubCli
 
 	stream, err := client.Subscribe(ctx, imPars)
 	if err != nil {
-		//return "error while invoking Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
 		subErrMsg = "error while invoking Subscribe"
 	}
 
@@ -184,7 +183,6 @@ func (cc *ConsumerClient) SubscribeImageTestConcurrent(client edgenode.PubSubCli
 			break
 		}
 		if err != nil {
-			//return "error while receiving stream from Subscribe", tsSubscribed, imSizeSubscribed, numImagesRecvd
 			subErrMsg = "error while receiving stream from Subscribe"
 		}
 		numImagesRecvd++
@@ -205,7 +203,6 @@ func (cc *ConsumerClient) SubscribeImageTestConcurrent(client edgenode.PubSubCli
 	}
 
 	fmt.Println(numImagesRecvd)
-	//return "subscribe success", tsSubscribed, imSizeSubscribed, numImagesRecvd
 	fmt.Println(subErrMsg)
 }
 
@@ -247,7 +244,6 @@ func (cc *ConsumerClient) SubscribeImageTestESB(client edgeserver.PubSubClient, 
 			client.Unsubscribe(ctx, appInfo)
 		}
 
-		//log.Printf("Consumer client: Number of images received %d, of size %d, and timestamp %s", numImagesRecvd, len(im.GetImage()), im.GetTimestamp())
 		ts := im.GetTimestamp()
 		imSize := len(im.GetImage())
 		tsSubscribed = append(tsSubscribed, ts)

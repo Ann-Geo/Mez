@@ -11,17 +11,6 @@ import (
 
 func main() {
 
-	/*var actController string = "0"
-	arguments := os.Args
-	for i := 0; i < len(arguments); i++ {
-		if strings.Compare(arguments[i], "-c") == 0 {
-			if strings.Compare(arguments[i+1], "1") == 0 {
-				actController = "1"
-				break
-			}
-		}
-	}*/
-
 	flag.Parse()
 
 	//es broker ip address

@@ -32,7 +32,7 @@ func runProducerClient(t *testing.T) {
 	}
 	defer conn.Close()
 	cl := edgenode.NewPubSubClient(conn)
-	err = producer.PublishImage(cl) // Test Publish API
+	err = producer.PublishImage(cl)
 	if err != nil {
 		t.Errorf("Publish error %s", err)
 	}
@@ -105,7 +105,7 @@ func TestEdgeServerBroker(t *testing.T) {
 	}
 	cl := edgeserver.NewPubSubClient(connEdgeserver)
 
-	err = consumer.SubscribeImage(cl, tbegin) // Test Subscribe API
+	err = consumer.SubscribeImage(cl, tbegin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -216,8 +216,8 @@ func TestESBMultiSubOnePub(t *testing.T) {
 		imSizeParam     string
 	}{
 		{"../../test_images/2.1M/", 100, 33, 10, 100, "NO", "S"},
-		//{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
-		//{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
+		{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
+		{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
 	}
 
 	var sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8, sub9, sub10 subReturn
@@ -320,8 +320,6 @@ func TestESBMultiSubOnePub(t *testing.T) {
 
 		time.Sleep(30000 * time.Millisecond)
 
-		//time.Sleep(38000 * time.Millisecond)
-
 	}
 }
 
@@ -364,8 +362,8 @@ func TestESBOneSubMultiPub(t *testing.T) {
 		numProd         uint64
 	}{
 		{"../../test_images/2.1M/", 100, 33, 10, 100, "NO", "S", 2},
-		//{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
-		//{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
+		{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S", 2},
+		{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V", 2},
 	}
 
 	var subCam1, subCam2, subCam3, subCam4 subReturn
@@ -426,8 +424,6 @@ func TestESBOneSubMultiPub(t *testing.T) {
 
 		time.Sleep(30000 * time.Millisecond)
 
-		//time.Sleep(38000 * time.Millisecond)
-
 	}
 }
 
@@ -450,8 +446,8 @@ func TestESBMultiSubMultiPub(t *testing.T) {
 		numProd         uint64
 	}{
 		{"../../test_images/2.1M/", 10, 33, 10, 100, "NO", "S", 2},
-		//{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S"},
-		//{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V"},
+		{"../../test_images/2.1M/", 1500, 33, 10, 100, "O", "S", 2},
+		{"../../test_images/1000_images/", 1000, 33, 10, 100, "NO", "V", 2},
 	}
 
 	var subCam1, subCam2, subCam3, subCam4, sub1Cam1, sub1Cam2, sub1Cam3, sub1Cam4 subReturn
@@ -551,8 +547,6 @@ func TestESBMultiSubMultiPub(t *testing.T) {
 		}()
 
 		time.Sleep(40000 * time.Millisecond)
-
-		//time.Sleep(38000 * time.Millisecond)
 
 	}
 }

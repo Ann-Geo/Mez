@@ -23,12 +23,8 @@ func (memlog *MemLog) Backup(fPath string) {
 	var b backupItem
 	for {
 
-		//fmt.Println("backup waiting")
-
 		//wait for backupItem from memlog Append
 		b = <-memlog.bchan
-		//fmt.Println(b.pos)
-
 		//create backupfile
 		fname := fPath + strconv.FormatUint(b.pos, 10) + ".json"
 		fmt.Println(fname)
@@ -52,18 +48,11 @@ func (memlog *MemLog) Backup(fPath string) {
 
 			tproto, _ := ptypes.TimestampProto(b.tseg.ts[i])
 			item := &storagepb.BFileItem{
-				Img: append([]byte(nil), b.imseg.im[i]...), //b.imseg.im[i],
+				Img: append([]byte(nil), b.imseg.im[i]...),
 				Ts:  tproto,
 			}
 
-			//out, err := proto.Marshal(item)
 			out, err := json.Marshal(item)
-			//if i != 0 {
-			//fmt.Fprintf(bFile, "mez")
-			//}
-
-			//fmt.Println(len(out))
-
 			if err != nil {
 				log.Fatalln("cannot serialize log item to bytes", err)
 			}
@@ -99,8 +88,6 @@ func (memlog *MemLog) Backup(fPath string) {
 		if err := bFile.Close(); err != nil {
 			log.Fatalln("cannot close backup file", err)
 		}
-
-		//fmt.Println("backup done", time.Now())
 
 	}
 }

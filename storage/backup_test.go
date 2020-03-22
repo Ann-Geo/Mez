@@ -11,7 +11,6 @@ func TestBackupSameSizeImage(t *testing.T) {
 
 	var (
 		imBuf []byte
-		//err   error
 	)
 	var tests = []struct {
 		imageFilesPath  string
@@ -36,12 +35,6 @@ func TestBackupSameSizeImage(t *testing.T) {
 		}
 
 		//read first file to buffer (conversion to bytes)
-		/*imBuf, err = ioutil.ReadFile(fileList[0])
-		if err != nil {
-			t.Fatalf("Cannot read image file %v\n", err)
-
-		}*/
-
 		buffer := gocv.IMRead(fileList[0], gocv.IMReadColor)
 		imBuf = buffer.ToBytes()
 
@@ -60,7 +53,6 @@ func TestBackupSameSizeImage(t *testing.T) {
 			ts := time.Now()
 			tsAppended = append(tsAppended, ts)
 			memlog.Append(Image(imBuf), ts)
-			//Specify frame rate here
 			time.Sleep(time.Duration(test.frameRate) * time.Millisecond)
 
 		}

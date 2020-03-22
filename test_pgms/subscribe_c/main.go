@@ -18,7 +18,6 @@ func main() {
 	tStartUnformat := time.Now()
 	tStart := (tStartUnformat).Format(customTimeformat)
 	fmt.Println(tStart)
-	//time.Sleep(3 * time.Second)
 
 	//create a consumer client with login and password
 	consumer := client.NewConsumerClient("client", "edge") //user name password
@@ -62,7 +61,6 @@ func main() {
 			break
 		}
 		if err != nil {
-			//log.Fatalln("error while receiving stream from Subscribe")
 			numIter := 5
 			for n := 0; n < numIter; n++ {
 				time.Sleep(150 * time.Millisecond)

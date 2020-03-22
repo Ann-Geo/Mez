@@ -102,7 +102,7 @@ func (s *EdgeServerBroker) Connect(ctx context.Context, url *edgeserver.Url) (*e
 
 // Called by Edge node
 func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.NodeInfo) (*edgeserver.Status, error) {
-	//fmt.Println("invoked")
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.nodeInfoMap[nodeinfo.Camid] = nodeinfo.Ipaddr
@@ -150,7 +150,6 @@ func (s *EdgeServerBroker) Register(ctx context.Context, nodeinfo *edgeserver.No
 		go s.store[nodeinfo.Camid].Backup(path)
 	}
 
-	//fmt.Println("registered")
 	return &edgeserver.Status{
 		Status: true,
 	}, nil
@@ -210,11 +209,8 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		return ErrNotRegistered
 	}
 
-	//fmt.Println(impars.Camid)
-
 	// Inrement number of subscribers to camid
 	s.numbSubscribers[impars.Camid]++
-	//fmt.Println(s.numbSubscribers[impars.Camid])
 
 	s.stopSubcription[impars.Appid+impars.Camid] = false
 
@@ -226,23 +222,12 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	c := make(chan bool)
 
 	//first check to see anyone subscribing to that camera
-
-	//fmt.Println("num sub", s.numbSubscribers[impars.Camid])
-
 	if s.numbSubscribers[impars.Camid] == 1 {
 		//if no one then go subscribe
-		//fmt.Println("Sub from EN")
-		go s.subscribeFromEdgenode(impars, c) //,errchsub)
-
-		//errsub := <-errchsub
-		//fmt.Println(errsub)
-		//if errsub != nil {
-		//log.Println(errsub)
-		//}
+		go s.subscribeFromEdgenode(impars, c)
 		<-c
 	}
 
-	//fmt.Println("start reading")
 	// Serve image to consumer application
 
 	tstart, _ := time.Parse(customTimeformat, impars.Start)
@@ -254,7 +239,6 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 	defer close(errch)
 
 	// Concurrent read of images from store got from edge node
-	//fmt.Println("Read from ES log")
 
 	go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 
@@ -270,14 +254,14 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 		select {
 		case image := <-imts:
 			{
-				//lastTs = image.Ts
+
 				if err := stream.Send(&edgeserver.Image{
 					Image:     image.Im,
 					Timestamp: (image.Ts).Format(customTimeformat),
 				}); err != nil {
 					return fmt.Errorf("EdgeServerBroker %s\n", err)
 				}
-				//fmt.Println("Image sent to subscriber")
+
 				ok = true
 			}
 		default:
@@ -296,14 +280,12 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 			break
 		}
 
-		tstart = lastTs.Add(200 * time.Millisecond) // TODO: Hacky - Read from 1 second later timestamp
-		//fmt.Println("here1111111111111111111")
+		tstart = lastTs.Add(200 * time.Millisecond)
 
 		go s.store[impars.Camid].Read(imts, tstart, tstop, errch)
 		errc := <-errch
 		if errc == storage.ErrTimestampMissing {
-			time.Sleep(1 * time.Microsecond) // TODO: Hacky - Sleep for a second
-			//fmt.Println("here22222222222222222")
+			time.Sleep(1 * time.Microsecond)
 			continue
 		}
 		ok = true
@@ -325,12 +307,9 @@ func (s *EdgeServerBroker) Subscribe(impars *edgeserver.ImageStreamParameters, s
 			}
 		}
 
-		time.Sleep(1 * time.Microsecond) // Sleep for a second
-		//fmt.Println("here333333333333333333333")
+		time.Sleep(1 * time.Microsecond)
 
 	}
-
-	//fmt.Println("returning from subscribe")
 
 	return nil
 
@@ -375,54 +354,6 @@ func (s *EdgeServerBroker) UnaryInterceptor(ctx context.Context, req interface{}
 	return handler(ctx, req)
 }
 
-/*
-func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamParameters, errch chan<- error) {
-	// TO DO: edge node username and password are hardcoded
-
-	if s.actController == "0" {
-
-		cons := NewEdgeServerClient("client", "edge") //username and password
-
-		// Connect to edge nodebroker
-		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
-		if err != nil {
-			errch <- ErrConnect
-			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
-		}
-		defer conn.Close()
-		cl := edgenode.NewPubSubClient(conn)
-
-		err = cons.SubscribeImage(s, cl, impars)
-		if err != nil {
-			errch <- err
-		}
-		errch <- nil
-
-	} else {
-		cons := NewEdgeServerClientWithControl("client", "edge") //username and password
-		//cons := NewEdgeServerClient("client", "edge") //username and password
-
-		// Connect to edge nodebroker
-		fmt.Println(s.nodeInfoMap[impars.Camid])
-		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithInsecure())
-		if err != nil {
-			fmt.Println("could not connect with Edge node broker")
-			errch <- ErrConnect
-			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
-		}
-		defer conn.Close()
-		cl := edgenode.NewPubSubClient(conn)
-
-		err = cons.SubscribeImage(s, cl, impars)
-		if err != nil {
-			errch <- err
-		}
-		errch <- nil
-	}
-
-}
-*/
-
 func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamParameters, c chan<- bool) {
 	// TO DO: edge node username and password are hardcoded
 
@@ -439,7 +370,7 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cons.Auth))
 		if err != nil {
 			log.Fatalf("could not connect with edge node")
-			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
+
 		}
 		defer conn.Close()
 		cl := edgenode.NewPubSubClient(conn)
@@ -451,7 +382,6 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 
 	} else {
 		cons := NewEdgeServerClientWithControl("client", "edge") //username and password
-		//cons := NewEdgeServerClient("client", "edge") //username and password
 
 		creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
 		if err != nil {
@@ -459,12 +389,12 @@ func (s *EdgeServerBroker) subscribeFromEdgenode(impars *edgeserver.ImageStreamP
 		}
 
 		// Connect to edge nodebroker
-		//fmt.Println(s.nodeInfoMap[impars.Camid])
+
 		conn, err := grpc.Dial(s.nodeInfoMap[impars.Camid], grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(&cons.Auth))
 		if err != nil {
-			//fmt.Println("could not connect with Edge node broker")
+
 			log.Fatalf("could not connect with edge node")
-			//return fmt.Errorf("Edgeserver: could did not connect to edgenode: %s", err)
+
 		}
 		defer conn.Close()
 		cl := edgenode.NewPubSubClient(conn)

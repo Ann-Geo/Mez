@@ -6,6 +6,6 @@ type contextKey int
 const (
 	clientIDKey contextKey = iota
 
-	// TODO: Polling time for subscribe (edgenode and edgeserver)
+	//Polling time for subscribe (edgenode and edgeserver)
 	maxPollTime = 1100000
 )
