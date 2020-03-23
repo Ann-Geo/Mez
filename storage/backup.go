@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/Ann-Geo/Mez/storagepb"
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
 
@@ -26,7 +27,7 @@ func (memlog *MemLog) Backup(fPath string) {
 		//wait for backupItem from memlog Append
 		b = <-memlog.bchan
 
-		//create backupfile
+		//create backupfile name
 		fname := fPath + strconv.FormatUint(b.pos, 10) + ".json"
 		fmt.Println(fname)
 
@@ -50,6 +51,9 @@ func (memlog *MemLog) Backup(fPath string) {
 		//get each image and timestamp
 		//pack into item after marshalling
 		//write json item to back up file
+
+		items := &storagepb.BFileItem{}
+
 		for i = 0; i < len(b.tseg.ts); i++ {
 
 			tproto, _ := ptypes.TimestampProto(b.tseg.ts[i])
@@ -58,16 +62,18 @@ func (memlog *MemLog) Backup(fPath string) {
 				Ts:  tproto,
 			}
 
-			out, err := json.Marshal(item)
-			if err != nil {
-				log.Fatalln("cannot serialize log item to bytes", err)
-			}
+			proto.Merge(items, item)
 
-			_, err = bFile.Write(out)
-			if err != nil {
-				log.Fatalln("cannot write log item to file", err)
-			}
+		}
 
+		out, err := json.Marshal(items)
+		if err != nil {
+			log.Fatalln("cannot serialize log item to bytes", err)
+		}
+
+		err = encryptFile(bFile, out, "password") //bFile.Write(out)
+		if err != nil {
+			log.Fatalln("cannot encrypt and write log item to file", err)
 		}
 
 		//crc calculation and persisting crc to a afile

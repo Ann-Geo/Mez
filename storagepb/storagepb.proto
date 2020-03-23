@@ -6,3 +6,7 @@ message BFileItem {
         bytes Img = 1;
         google.protobuf.Timestamp Ts = 2;
 }
+
+message BFileItemArray {
+        repeated BFileItem BItems = 1;
+}

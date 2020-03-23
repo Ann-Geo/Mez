@@ -45,7 +45,7 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 		}
 
 		//sort file names based on modified time
-		//- to get the most recently written images
+		//- to get the most recently written segments
 		sort.Slice(fileList, func(i, j int) bool {
 			return fileList[i].ModTime().Unix() > fileList[j].ModTime().Unix()
 		})
@@ -59,10 +59,16 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 		for i > 0 {
 
 			//get data from the backup file
-			b, e := ioutil.ReadFile(recoveryPath + fileList[i].Name())
+			/*b, e := ioutil.ReadFile(recoveryPath + fileList[i].Name())
 			fmt.Println(recoveryPath + fileList[i].Name())
 			if e != nil {
 				log.Fatalln("cannot read backup file", e)
+			}*/
+
+			b, e := decryptFile(recoveryPath+fileList[i].Name(), "password")
+			fmt.Println(recoveryPath + fileList[i].Name())
+			if e != nil {
+				log.Fatalln("cannot read and decrypt backup file", e)
 			}
 
 			pb := &storagepb.BFileItem{}
