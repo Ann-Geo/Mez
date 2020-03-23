@@ -44,7 +44,7 @@ func (memlog *MemLog) Backup(fPath string) {
 			log.Fatalln("cannot create backup file", err)
 		}
 
-		fmt.Println(len(b.tseg.ts))
+		//fmt.Println(len(b.tseg.ts))
 
 		var i int
 

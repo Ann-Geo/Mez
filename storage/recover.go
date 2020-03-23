@@ -50,10 +50,6 @@ func (memlog *MemLog) Recover(recoveryFile *os.File, camid string) {
 			return fileList[i].ModTime().Unix() > fileList[j].ModTime().Unix()
 		})
 
-		for _, f := range fileList {
-			fmt.Println(f.Name())
-		}
-
 		//starting from last file - most recently written
 		var i int = len(fileList) - 1
 		for i > 0 {
